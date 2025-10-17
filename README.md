@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # optic_form_app
 
 A new Flutter project.
@@ -14,3 +15,6 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+=======
+# optic-form-reader
+>>>>>>> ef3ba50991e017158a1143fd79c8a3b9030a6d87
