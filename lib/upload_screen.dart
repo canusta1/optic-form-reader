@@ -1,8 +1,10 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'auth_service.dart';
+import 'form_service.dart';
 
 class UploadScreen extends StatefulWidget {
   const UploadScreen({super.key});
@@ -12,93 +14,130 @@ class UploadScreen extends StatefulWidget {
 }
 
 class _UploadScreenState extends State<UploadScreen> {
-  File? _image;
+  XFile? _image;
+  Uint8List? _imageBytes;
   bool _loading = false;
-  String? _resultText;
+  Map<String, dynamic>? _result;
   final ImagePicker _picker = ImagePicker();
 
-  Future<void> _pickImage(ImageSource source) async {
-    final picked = await _picker.pickImage(source: source);
-    if (picked != null) {
+  List<dynamic> _answerKeys = [];
+  int? _selectedAnswerKeyId;
+  bool _loadingAnswerKeys = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAnswerKeys();
+  }
+
+  Future<void> _loadAnswerKeys() async {
+    setState(() => _loadingAnswerKeys = true);
+    try {
+      final keys = await FormService.getAnswerKeys();
       setState(() {
-        _image = File(picked.path);
-        _resultText = null;
+        _answerKeys = keys;
+        _loadingAnswerKeys = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loadingAnswerKeys = false);
+      }
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picked = await _picker.pickImage(source: source, imageQuality: 85);
+    if (picked != null) {
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _image = picked;
+        _imageBytes = bytes;
+        _result = null;
       });
     }
   }
 
-  Future<void> _sendImage() async {
+  Future<void> _analyzeForm() async {
     if (_image == null) {
-      _showSnackBar('Lütfen önce bir fotoğraf seçin');
+      _showSnackBar('Lütfen önce bir fotoğraf seçin', Colors.orange);
       return;
     }
-    
+
+    if (_selectedAnswerKeyId == null) {
+      _showSnackBar('Lütfen bir cevap anahtarı seçin', Colors.orange);
+      return;
+    }
+
     setState(() => _loading = true);
+    print('📤 Form analizi başlatılıyor...');
+    print('🖼️ Dosya: ${_image!.path}');
+    print('🔑 Cevap Anahtarı ID: $_selectedAnswerKeyId');
 
     try {
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://127.0.0.1:5000/read_optic_form'),
+        Uri.parse('http://127.0.0.1:5000/read-optic-form'),
       );
-      request.files.add(await http.MultipartFile.fromPath('file', _image!.path));
+
+      // Token ve dosya ekle
+      request.headers.addAll(AuthService.getAuthHeaders());
+      request.fields['answer_key_id'] = _selectedAnswerKeyId.toString();
+
+      // Web için bytes, mobil için path kullan
+      if (_imageBytes != null) {
+        request.files.add(http.MultipartFile.fromBytes(
+          'file',
+          _imageBytes!,
+          filename: _image!.name,
+        ));
+      } else {
+        request.files
+            .add(await http.MultipartFile.fromPath('file', _image!.path));
+      }
+
+      print('📡 İstek gönderiliyor...');
       final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      print('📥 Yanıt alındı: ${response.statusCode}');
+      print('📄 Yanıt: $responseBody');
 
       if (response.statusCode == 200) {
-        final responseBody = await response.stream.bytesToString();
-        try {
-          final jsonResponse = json.decode(responseBody);
-          setState(() {
-            _resultText = _formatResults(jsonResponse);
-          });
-          _showSnackBar('Analiz başarılı!');
-        } catch (e) {
-          setState(() {
-            _resultText = responseBody;
-          });
-        }
-      } else {
+        final jsonResponse = json.decode(responseBody);
         setState(() {
-          _resultText = 'Sunucu hatası (${response.statusCode})';
+          _result = jsonResponse;
         });
-        _showSnackBar('Bir hata oluştu');
+        print('✅ Analiz başarılı!');
+        _showSnackBar('✅ Analiz başarıyla tamamlandı!', Colors.green);
+      } else {
+        print('❌ Hata yanıtı: $responseBody');
+        try {
+          final error = json.decode(responseBody);
+          _showSnackBar('❌ Hata: ${error['error']}', Colors.red);
+        } catch (e) {
+          _showSnackBar('❌ Backend hatası: $responseBody', Colors.red);
+        }
       }
     } catch (e) {
-      setState(() {
-        _resultText = 'Bağlantı hatası: $e';
-      });
-      _showSnackBar('Bağlantı hatası');
+      print('❌ İstek hatası: $e');
+      String errorMsg = '❌ Bağlantı hatası: $e';
+
+      if (e.toString().contains('Connection refused') ||
+          e.toString().contains('SocketException')) {
+        errorMsg =
+            '❌ Backend çalışmıyor! start_backend.bat dosyasını çalıştırın.';
+      }
+
+      _showSnackBar(errorMsg, Colors.red);
     } finally {
       setState(() => _loading = false);
     }
   }
 
-  String _formatResults(Map<String, dynamic> jsonResponse) {
-    if (jsonResponse['success'] == true) {
-      return '''
-ÖĞRENCİ BİLGİLERİ:
-📝 Adı: ${jsonResponse['student_name'] ?? 'Bilinmiyor'}
-🔢 Numarası: ${jsonResponse['student_number'] ?? 'Bilinmiyor'}
-
-📊 SINAV SONUÇLARI:
-${jsonResponse['answers'] is Map ? 
-  jsonResponse['answers'].entries.map((e) => '📖 ${e.key}: ${e.value}').join('\n') : 
-  'Sonuçlar yükleniyor...'}
-
-🎯 TOPLAM: ${jsonResponse['total_score'] ?? 'Hesaplanıyor...'}
-⭐ Başarı Oranı: ${jsonResponse['success_rate'] ?? 'Hesaplanıyor...'}%
-
-${jsonResponse['details'] ?? 'Analiz tamamlandı'}
-      ''';
-    } else {
-      return 'Hata: ${jsonResponse['error'] ?? 'Bilinmeyen hata'}';
-    }
-  }
-
-  void _showSnackBar(String message) {
+  void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: color,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -107,259 +146,365 @@ ${jsonResponse['details'] ?? 'Analiz tamamlandı'}
   void _clearImage() {
     setState(() {
       _image = null;
-      _resultText = null;
+      _imageBytes = null;
+      _result = null;
     });
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.deepPurple),
+              title: const Text('Kamera ile Çek'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.photo_library, color: Colors.deepPurple),
+              title: const Text('Galeriden Seç'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
-      appBar: AppBar(
-        title: const Text('Optik Form Analiz'),
-        centerTitle: true,
-        elevation: 0,
-        actions: [
-          if (_image != null)
-            IconButton(
-              onPressed: _clearImage,
-              icon: const Icon(Icons.clear),
-              tooltip: 'Temizle',
-            ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildHeaderSection(),
-                const SizedBox(height: 30),
-                _buildImagePreview(),
-                const SizedBox(height: 30),
-                _buildActionButtons(),
-                const SizedBox(height: 30),
-                if (_resultText != null) _buildResultSection(),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeaderSection() {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: const Icon(
-            Icons.analytics,
-            size: 80,
-            color: Colors.deepPurple,
-          ),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'Optik Form Analiz Uygulaması',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onBackground,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Fotoğraf yükleyin veya çekin, otomatik olarak analiz edelim',
-          style: TextStyle(
-            fontSize: 16,
-            color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildImagePreview() {
-    return Container(
-      width: double.infinity,
-      height: 250,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: _image == null
-          ? Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.photo_library,
-                  size: 60,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Başlık
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.deepPurple.shade300, Colors.purple.shade600],
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  'Fotoğraf seçilmedi',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                  ),
-                ),
-              ],
-            )
-          : ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Stack(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
                 children: [
-                  Image.file(
-                    _image!,
-                    width: double.infinity,
-                    height: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: IconButton(
-                        onPressed: _clearImage,
-                        icon: const Icon(Icons.close, color: Colors.white, size: 20),
-                      ),
+                  Icon(Icons.document_scanner, size: 60, color: Colors.white),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Optik Form Okuyucu',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Formu çekin veya yükleyin, otomatik analiz edelim',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
             ),
-    );
-  }
 
-  Widget _buildActionButtons() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
+            const SizedBox(height: 24),
+
+            // Cevap Anahtarı Seçimi
+            Card(
+              elevation: 3,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.key, color: Colors.deepPurple),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Cevap Anahtarı Seç',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _loadingAnswerKeys
+                        ? Center(child: CircularProgressIndicator())
+                        : _answerKeys.isEmpty
+                            ? Text(
+                                'Henüz cevap anahtarı yok. Formlarım sekmesinden oluşturun.',
+                                style: TextStyle(color: Colors.grey),
+                              )
+                            : DropdownButtonFormField<int>(
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                ),
+                                hint: Text('Bir cevap anahtarı seçin'),
+                                value: _selectedAnswerKeyId,
+                                items: _answerKeys.map((key) {
+                                  return DropdownMenuItem<int>(
+                                    value: key['id'],
+                                    child: Text(
+                                      key['exam_name'],
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedAnswerKeyId = value;
+                                  });
+                                },
+                              ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Görüntü Önizleme
+            Card(
+              elevation: 3,
+              child: Container(
+                height: 300,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.grey[100],
+                ),
+                child: _image == null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_photo_alternate,
+                                size: 80, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Henüz fotoğraf seçilmedi',
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: _imageBytes != null
+                            ? Image.memory(
+                                _imageBytes!,
+                                fit: BoxFit.contain,
+                              )
+                            : const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                      ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Butonlar
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _showImageSourceDialog,
+                    icon: Icon(Icons.add_a_photo),
+                    label: Text(_image == null ? 'Fotoğraf Ekle' : 'Değiştir'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                if (_image != null) ...[
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _clearImage,
+                    icon: Icon(Icons.clear),
+                    label: Text('Temizle'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey,
+                      foregroundColor: Colors.white,
+                      padding:
+                          EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Analiz Butonu
+            SizedBox(
+              height: 56,
               child: ElevatedButton.icon(
-                onPressed: _loading ? null : () => _pickImage(ImageSource.gallery),
-                icon: const Icon(Icons.photo_library),
-                label: const Text('Galeriden Seç'),
+                onPressed: _loading ? null : _analyzeForm,
+                icon: _loading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(Icons.analytics, size: 24),
+                label: Text(
+                  _loading ? 'Analiz Ediliyor...' : 'Formu Analiz Et',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _loading ? null : () => _pickImage(ImageSource.camera),
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('Fotoğraf Çek'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+
+            const SizedBox(height: 24),
+
+            // Sonuçlar
+            if (_result != null && _result!['success'] == true)
+              Card(
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.check_circle,
+                              color: Colors.green, size: 28),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Analiz Tamamlandı',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Divider(height: 24),
+                      _buildResultRow('👤 Öğrenci Adı',
+                          _result!['student_name'] ?? 'Bilinmiyor'),
+                      _buildResultRow('🔢 Öğrenci No',
+                          _result!['student_number'] ?? 'Bilinmiyor'),
+                      Divider(height: 24),
+                      _buildResultRow(
+                          '📊 Toplam Puan', '${_result!['total_score']}',
+                          valueColor: Colors.green, isBold: true),
+                      _buildResultRow(
+                          '✅ Başarı Oranı', '%${_result!['success_rate']}',
+                          valueColor: Colors.blue, isBold: true),
+                      _buildResultRow('ℹ️ Detay', _result!['details'] ?? ''),
+                      if (_result!['subject_scores'] != null) ...[
+                        Divider(height: 24),
+                        Text(
+                          'Ders Bazlı Sonuçlar:',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ...(_result!['subject_scores'] as Map)
+                            .entries
+                            .map((entry) {
+                          final subjectName = entry.key;
+                          final scores = entry.value;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '📖 $subjectName',
+                                    style: TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                                Text(
+                                  '${scores['correct']}/${scores['total']} (${scores['score']} puan)',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.deepPurple,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ],
                   ),
                 ),
               ),
-            ),
           ],
         ),
-        const SizedBox(height: 15),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _loading ? null : _sendImage,
-            icon: _loading
-                ? SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    ),
-                  )
-                : const Icon(Icons.analytics),
-            label: _loading
-                ? const Text('Analiz Yapılıyor...')
-                : const Text('Analiz Et'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              backgroundColor: Colors.deepPurple,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              elevation: 3,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildResultSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
+  Widget _buildResultRow(String label, String value,
+      {Color? valueColor, bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.fact_check,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Analiz Sonuçları',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.background,
-              borderRadius: BorderRadius.circular(12),
-            ),
+          Expanded(
+            flex: 2,
             child: Text(
-              _resultText!,
+              label,
               style: TextStyle(
-                fontSize: 16,
-                height: 1.5,
-                color: Theme.of(context).colorScheme.onBackground,
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                color: valueColor ?? Colors.black87,
               ),
             ),
           ),

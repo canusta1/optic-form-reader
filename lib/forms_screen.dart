@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:optic_form_reader/create_form_screen.dart';
+import 'form_service.dart';
 
 // FormModel ve SubjectModel'i bu dosyada tanımla
 class FormModel {
+  final int? id;
   final String name;
   final List<SubjectModel> subjects;
   final DateTime createdAt;
+  final int? studentCount;
+  final String? schoolType;
 
   FormModel({
+    this.id,
     required this.name,
     required this.subjects,
     required this.createdAt,
+    this.studentCount,
+    this.schoolType,
   });
 
   int get totalQuestions {
@@ -131,7 +138,8 @@ class FormCard extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Formu Sil'),
-        content: Text('"${form.name}" formunu silmek istediğinizden emin misiniz?'),
+        content:
+            Text('"${form.name}" formunu silmek istediğinizden emin misiniz?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -161,24 +169,42 @@ class FormsScreen extends StatefulWidget {
 }
 
 class _FormsScreenState extends State<FormsScreen> {
-  final List<FormModel> _forms = [];
+  List<FormModel> _forms = [];
+  bool _isLoading = true;
 
-  void _addNewForm(FormModel newForm) {
-    setState(() {
-      _forms.add(newForm);
-    });
+  @override
+  void initState() {
+    super.initState();
+    _loadForms();
   }
 
-  void _deleteForm(int index) {
-    setState(() {
-      _forms.removeAt(index);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Form silindi'),
-        backgroundColor: Colors.red,
-      ),
-    );
+  Future<void> _loadForms() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final answerKeys = await FormService.getAnswerKeys();
+
+      setState(() {
+        _forms = answerKeys.map((key) {
+          return FormModel(
+            id: key['id'],
+            name: key['exam_name'],
+            subjects: [], // Detayları lazım olduğunda çekilir
+            createdAt: DateTime.parse(key['created_at']),
+            studentCount: key['student_count'] ?? 0,
+            schoolType: key['school_type'],
+          );
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Formlar yüklenemedi: $e')),
+        );
+      }
+    }
   }
 
   void _navigateToCreateForm() async {
@@ -187,8 +213,9 @@ class _FormsScreenState extends State<FormsScreen> {
       MaterialPageRoute(builder: (context) => const CreateFormScreen()),
     );
 
-    if (result != null && result is FormModel) {
-      _addNewForm(result);
+    if (result == true) {
+      // Yeniden yükle
+      _loadForms();
     }
   }
 
@@ -198,37 +225,48 @@ class _FormsScreenState extends State<FormsScreen> {
       appBar: AppBar(
         title: const Text('Formlarım'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadForms,
+          ),
+        ],
       ),
-      body: _forms.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.assignment, size: 80, color: Colors.grey),
-                  SizedBox(height: 20),
-                  Text(
-                    'Henüz form oluşturmadınız',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _forms.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.assignment, size: 80, color: Colors.grey),
+                      SizedBox(height: 20),
+                      Text(
+                        'Henüz form oluşturmadınız',
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'Aşağıdaki + butonuna tıklayarak yeni form oluşturun',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 10),
-                  Text(
-                    'Aşağıdaki + butonuna tıklayarak yeni form oluşturun',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _forms.length,
-              itemBuilder: (context, index) {
-                return FormCard(
-                  form: _forms[index],
-                  onDelete: () => _deleteForm(index),
-                );
-              },
-            ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _forms.length,
+                  itemBuilder: (context, index) {
+                    return FormCard(
+                      form: _forms[index],
+                      onDelete: () {
+                        // Silme işlemi - şimdilik sadece refresh
+                        _loadForms();
+                      },
+                    );
+                  },
+                ),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToCreateForm,
         backgroundColor: Colors.deepPurple,
