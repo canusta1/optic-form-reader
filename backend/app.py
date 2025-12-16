@@ -7,9 +7,8 @@ from werkzeug.utils import secure_filename
 import traceback
 
 from database import Database
-from image_processor import OpticalFormReader, AdvancedFormReader
-from advanced_form_reader import AdvancedOpticalFormReader
 from form_templates import list_templates, get_template
+from image_processor import OptikFormOkuyucu
 
 app = Flask(__name__)
 CORS(app)
@@ -21,12 +20,12 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 # Klasörleri oluştur
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs('processed', exist_ok=True)
 
-# Database ve image processor
+# Database
 db = Database()
-form_reader = AdvancedFormReader()  # Basit formlar için
-lgs_reader = AdvancedOpticalFormReader('lgs_20_20')  # LGS formları için
+
+# Optik Form Okuyucu
+form_okuyucu = OptikFormOkuyucu(debug_mode=True)
 
 # İzin verilen dosya uzantıları
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
@@ -235,7 +234,7 @@ def get_answer_key_by_name(exam_name):
 @app.route('/read-optic-form', methods=['POST'])
 def read_optic_form():
     """
-    Optik formu oku ve analiz et
+    Optik formu oku, analiz et ve sonuçları kaydet
     """
     print("\n📥 Form okuma isteği alındı...")
     
@@ -246,149 +245,106 @@ def read_optic_form():
     
     print(f"✅ Kullanıcı ID: {user_id}")
     
-    # Dosya kontrolü
-    if 'file' not in request.files:
-        print("❌ Dosya bulunamadı")
-        return jsonify({'error': 'Dosya bulunamadı'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        print("❌ Dosya seçilmedi")
-        return jsonify({'error': 'Dosya seçilmedi'}), 400
-    
-    if not allowed_file(file.filename):
-        print(f"❌ Geçersiz dosya formatı: {file.filename}")
-        return jsonify({'error': 'Geçersiz dosya formatı (Sadece jpg, jpeg, png)'}), 400
-    
-    print(f"📄 Dosya adı: {file.filename}")
-    
-    # Cevap anahtarı ID'si
-    answer_key_id = request.form.get('answer_key_id')
-    if not answer_key_id:
-        print("❌ Cevap anahtarı ID eksik")
-        return jsonify({'error': 'Cevap anahtarı ID gerekli'}), 400
-    
-    print(f"🔑 Cevap anahtarı ID: {answer_key_id}")
-    
     try:
+        # Dosya kontrolü
+        if 'file' not in request.files:
+            return jsonify({'error': 'Dosya bulunamadı'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'Dosya seçilmedi'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Geçersiz dosya formatı (Sadece jpg, jpeg, png)'}), 400
+        
+        print(f"📄 Dosya: {file.filename}")
+        
+        # Cevap anahtarı ID'si
+        answer_key_id = request.form.get('answer_key_id')
+        if not answer_key_id:
+            return jsonify({'error': 'Cevap anahtarı ID gerekli'}), 400
+        
+        print(f"🔑 Cevap anahtarı ID: {answer_key_id}")
+        
         # Dosyayı kaydet
         filename = secure_filename(f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}")
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        print(f"💾 Dosya kaydediliyor: {filepath}")
         file.save(filepath)
-        print("✅ Dosya kaydedildi")
+        print(f"💾 Dosya kaydedildi: {filepath}")
         
         # Cevap anahtarını al
-        print(f"🔍 Cevap anahtarı getiriliyor...")
         answer_key = db.get_answer_key_details(int(answer_key_id))
-        
         if not answer_key:
-            print("❌ Cevap anahtarı bulunamadı")
             return jsonify({'error': 'Cevap anahtarı bulunamadı'}), 404
         
-        print(f"✅ Cevap anahtarı bulundu: {answer_key.get('exam_name')}")
-        print(f"📊 Toplam soru sayısı: {answer_key['total_questions']}")
+        print(f"📋 Cevap anahtarı: {answer_key.get('exam_name')}")
         
-        # Form şablonuna göre doğru reader'ı seç
-        form_template = answer_key.get('form_template', 'simple')
-        print(f"📋 Form şablonu: {form_template}")
+        # 🔬 GÖRÜNTÜ İŞLEME - Optik formu oku
+        print("\n🔬 Görüntü işleme başlıyor...")
+        okuma_sonucu = form_okuyucu.form_oku(filepath)
         
-        # Görüntü işleme ile cevapları oku
-        total_questions = answer_key['total_questions']
-        print(f"🔬 Görüntü işleme başlıyor...")
+        if not okuma_sonucu['success']:
+            return jsonify({
+                'error': okuma_sonucu.get('error', 'Form okunamadı')
+            }), 400
         
-        if form_template == 'lgs_20_20':
-            # LGS formları için gelişmiş okuyucu
-            print("📚 LGS form okuyucu kullanılıyor...")
-            detection_result = lgs_reader.read_form(filepath)
-            
-            if 'error' in detection_result:
-                print(f"❌ LGS form okuma hatası: {detection_result['error']}")
-                return jsonify(detection_result), 400
-            
-            # Öğrenci bilgilerini al
-            student_info = detection_result.get('student_info', {})
-            print(f"👤 Öğrenci No: {student_info.get('student_number', 'Yok')}")
-            print(f"🆔 TC Kimlik: {student_info.get('tc_kimlik', 'Yok')}")
-            
-            # Bölüm bazlı cevapları düzleştir
-            section_answers = detection_result.get('answers', {})
-            all_answers = {}
-            question_num = 1
-            
-            for section_code, answers in section_answers.items():
-                print(f"   {section_code}: {len(answers)} soru")
-                for q, ans in answers.items():
-                    all_answers[question_num] = ans
-                    question_num += 1
-            
-            detection_result = {'answers': all_answers, 'student_info': student_info}
-            
-        else:
-            # Basit formlar için eski okuyucu
-            print("📄 Basit form okuyucu kullanılıyor...")
-            detection_result = form_reader.detect_answers(filepath, total_questions)
-            
-            if 'error' in detection_result:
-                print(f"❌ Görüntü işleme hatası: {detection_result['error']}")
-                return jsonify(detection_result), 400
+        # Öğrenci bilgileri
+        student_info = okuma_sonucu['student_info']
+        student_answers = okuma_sonucu['answers']
         
-        print(f"✅ Görüntü işleme tamamlandı")
-        print(f"📝 Tespit edilen cevaplar: {len(detection_result.get('answers', {}))}")
+        print(f"👤 Öğrenci: {student_info.get('name', '')} {student_info.get('surname', '')}")
+        print(f"📝 Okunan cevap sayısı: {len(student_answers)}")
         
-        student_answers = detection_result['answers']
+        # ⚖️ CEVAPLARI KARŞILAŞTIR
+        print("\n⚖️ Cevaplar karşılaştırılıyor...")
+        karsilastirma = compare_answers(answer_key, student_answers)
         
-        # Cevapları karşılaştır ve puanla
-        print(f"⚖️  Cevaplar karşılaştırılıyor...")
-        result = compare_answers(answer_key, student_answers)
-        print(f"✅ Karşılaştırma tamamlandı")
-        print(f"📊 Puan: {result['total_score']} - Başarı: %{result['success_rate']}")
+        print(f"✅ Doğru: {karsilastirma['correct_count']}")
+        print(f"❌ Yanlış: {karsilastirma['total_questions'] - karsilastirma['correct_count'] - sum(1 for a in student_answers.values() if a == 'BOŞ')}")
+        print(f"⬜ Boş: {sum(1 for a in student_answers.values() if a == 'BOŞ')}")
+        print(f"📊 Başarı: %{karsilastirma['success_rate']}")
         
-        # Sonuçları veritabanına kaydet
+        # 💾 SONUÇLARI KAYDET
+        student_name = student_info.get('name', '')
+        student_surname = student_info.get('surname', '')
+        full_name = f"{student_name} {student_surname}".strip() or 'Bilinmiyor'
+        
         student_data = {
-            'name': result.get('student_name', 'Bilinmiyor'),
-            'number': result.get('student_number', 'Bilinmiyor'),
-            'total_score': result['total_score'],
-            'success_rate': result['success_rate']
+            'name': full_name,
+            'number': student_info.get('student_number', 'Bilinmiyor'),
+            'total_score': karsilastirma['total_score'],
+            'success_rate': karsilastirma['success_rate']
         }
         
         print(f"💾 Sonuçlar veritabanına kaydediliyor...")
         result_id = db.save_student_result(
             int(answer_key_id),
             student_data,
-            result['detailed_answers'],
+            karsilastirma['detailed_answers'],
             filepath
         )
-        print(f"✅ Sonuçlar kaydedildi (ID: {result_id})")
+        print(f"✅ Kaydedildi (ID: {result_id})")
         
+        # Yanıt
         response = {
             'success': True,
             'result_id': result_id,
-            'student_name': student_data['name'],
+            'student_name': full_name,
             'student_number': student_data['number'],
-            'total_score': result['total_score'],
-            'success_rate': result['success_rate'],
-            'subject_scores': result['subject_scores'],
-            'details': f"{result['correct_count']}/{total_questions} doğru"
+            'total_score': karsilastirma['total_score'],
+            'success_rate': karsilastirma['success_rate'],
+            'subject_scores': karsilastirma['subject_scores'],
+            'details': f"{karsilastirma['correct_count']}/{karsilastirma['total_questions']} doğru"
         }
         
-        print(f"✅ İşlem başarılı!\n")
+        print(f"\n✅ İşlem tamamlandı!\n")
         return jsonify(response)
         
     except Exception as e:
-        print(f"\n❌ HATA OLUŞTU!")
-        print(f"Hata mesajı: {e}")
-        print("Detaylı hata:")
+        print(f"\n❌ HATA: {e}")
         traceback.print_exc()
-        print()
-        
-        error_message = str(e)
-        if 'NoneType' in error_message:
-            error_message = 'Cevap anahtarı veya form bilgisi eksik'
-        elif 'list index' in error_message:
-            error_message = 'Form yapısı beklenenle uyuşmuyor'
-        
-        return jsonify({'error': f'İşlem hatası: {error_message}'}), 500
+        return jsonify({'error': str(e)}), 500
+
 
 def compare_answers(answer_key, student_answers):
     """
@@ -486,6 +442,150 @@ def get_all_results():
 def health():
     return jsonify({'status': 'OK', 'message': 'Optik Form API çalışıyor'})
 
+# ============== DATABASE VIEWER ==============
+
+@app.route('/db', methods=['GET'])
+def db_viewer_home():
+    """Veritabanı ana sayfa - tüm tabloları listele"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+    tables = [r[0] for r in cursor.fetchall()]
+    
+    table_info = []
+    for t in tables:
+        cursor.execute(f"SELECT COUNT(*) FROM {t}")
+        count = cursor.fetchone()[0]
+        table_info.append({'name': t, 'count': count})
+    
+    conn.close()
+    
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Optik Form DB Viewer</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+            h1 { color: #333; }
+            .table-list { display: flex; flex-wrap: wrap; gap: 15px; }
+            .table-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-width: 200px; }
+            .table-card h3 { margin: 0 0 10px 0; color: #2196F3; }
+            .table-card p { margin: 0; color: #666; }
+            .table-card a { display: inline-block; margin-top: 10px; color: #2196F3; text-decoration: none; }
+            .table-card a:hover { text-decoration: underline; }
+        </style>
+    </head>
+    <body>
+        <h1>📊 Optik Form Veritabanı</h1>
+        <div class="table-list">
+    """
+    
+    for t in table_info:
+        html += f"""
+            <div class="table-card">
+                <h3>{t['name']}</h3>
+                <p>{t['count']} kayıt</p>
+                <a href="/db/{t['name']}">Görüntüle →</a>
+            </div>
+        """
+    
+    html += """
+        </div>
+    </body>
+    </html>
+    """
+    return html
+
+@app.route('/db/<table_name>', methods=['GET'])
+def db_viewer_table(table_name):
+    """Belirli bir tabloyu görüntüle"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    # Tablo var mı kontrol
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+    if not cursor.fetchone():
+        conn.close()
+        return "Tablo bulunamadı", 404
+    
+    # Kolon bilgileri
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    columns = [col[1] for col in cursor.fetchall()]
+    
+    # Sayfa numarası
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    offset = (page - 1) * per_page
+    
+    # Toplam kayıt
+    cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+    total = cursor.fetchone()[0]
+    total_pages = (total + per_page - 1) // per_page
+    
+    # Verileri al
+    cursor.execute(f"SELECT * FROM {table_name} ORDER BY id DESC LIMIT ? OFFSET ?", (per_page, offset))
+    rows = cursor.fetchall()
+    
+    conn.close()
+    
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>{table_name} - DB Viewer</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+            h1 {{ color: #333; }}
+            a.back {{ color: #2196F3; text-decoration: none; }}
+            table {{ width: 100%; border-collapse: collapse; background: white; margin-top: 20px; }}
+            th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }}
+            th {{ background: #2196F3; color: white; }}
+            tr:hover {{ background: #f5f5f5; }}
+            td {{ max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+            .pagination {{ margin-top: 20px; }}
+            .pagination a {{ padding: 8px 16px; margin: 0 4px; background: #2196F3; color: white; text-decoration: none; border-radius: 4px; }}
+            .pagination a.disabled {{ background: #ccc; }}
+            .pagination span {{ padding: 8px 16px; }}
+        </style>
+    </head>
+    <body>
+        <a class="back" href="/db">← Geri</a>
+        <h1>📋 {table_name} ({total} kayıt)</h1>
+        <table>
+            <tr>
+    """
+    
+    for col in columns:
+        html += f"<th>{col}</th>"
+    html += "</tr>"
+    
+    for row in rows:
+        html += "<tr>"
+        for val in row:
+            display = str(val)[:100] + "..." if len(str(val)) > 100 else str(val)
+            html += f"<td title='{str(val)[:500]}'>{display}</td>"
+        html += "</tr>"
+    
+    html += f"""
+        </table>
+        <div class="pagination">
+            <span>Sayfa {page}/{total_pages}</span>
+    """
+    
+    if page > 1:
+        html += f'<a href="/db/{table_name}?page={page-1}">← Önceki</a>'
+    if page < total_pages:
+        html += f'<a href="/db/{table_name}?page={page+1}">Sonraki →</a>'
+    
+    html += """
+        </div>
+    </body>
+    </html>
+    """
+    return html
+
 if __name__ == '__main__':
     print("\n" + "="*60)
     print("  🚀 OPTİK FORM OKUYUCU BACKEND")
@@ -522,7 +622,7 @@ if __name__ == '__main__':
     print("\n📡 API: http://127.0.0.1:5000")
     print("🔧 OpenCV ve Flask hazır")
     print("📋 Veritabanı yönetimi: python db_manager.py")
-    print("🌐 Web tarayıcı: python db_viewer.py")
+    print("🌐 DB Viewer: http://127.0.0.1:5000/db")
     print("\n⏹️  Durdurmak için Ctrl+C\n")
     print("="*60 + "\n")
     

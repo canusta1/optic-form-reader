@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'auth_service.dart';
 import 'form_service.dart';
 
@@ -46,9 +47,17 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final picked = await _picker.pickImage(source: source, imageQuality: 85);
+    // Kalite kaybını önlemek için imageQuality: 100 (sıkıştırma yok)
+    // maxWidth/maxHeight belirtilmezse orijinal boyut korunur
+    final picked = await _picker.pickImage(
+      source: source, 
+      imageQuality: 100,  // Sıkıştırma yok
+      // maxWidth: null,  // Orijinal boyut
+      // maxHeight: null, // Orijinal boyut
+    );
     if (picked != null) {
       final bytes = await picked.readAsBytes();
+      print('📸 Görüntü seçildi: ${bytes.length} bytes');
       setState(() {
         _image = picked;
         _imageBytes = bytes;
@@ -85,10 +94,20 @@ class _UploadScreenState extends State<UploadScreen> {
 
       // Web için bytes, mobil için path kullan
       if (_imageBytes != null) {
+        // Dosya uzantısına göre content type belirle
+        String contentType = 'image/jpeg';
+        String filename = _image!.name.toLowerCase();
+        if (filename.endsWith('.png')) {
+          contentType = 'image/png';
+        } else if (filename.endsWith('.jpg') || filename.endsWith('.jpeg')) {
+          contentType = 'image/jpeg';
+        }
+        
         request.files.add(http.MultipartFile.fromBytes(
           'file',
           _imageBytes!,
           filename: _image!.name,
+          contentType: MediaType.parse(contentType),
         ));
       } else {
         request.files

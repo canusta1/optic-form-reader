@@ -50,6 +50,7 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
       'GÖRSEL SANATLAR',
       'MÜZİK'
     ],
+    'YGS': ['TÜRKÇE', 'T.MATEMATİK', 'FEN BİLİMLER', 'SOSYAL BİL'],
   };
 
   @override
@@ -73,13 +74,27 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
   void _initializeSubjects() {
     _subjects.clear();
     final availableSubjects = _schoolSubjects[_selectedSchoolType]!;
-    for (int i = 0; i < _subjectCount; i++) {
-      _subjects.add(SubjectModel(
-        name: availableSubjects[i % availableSubjects.length],
-        questionCount: 20,
-        answers: List.filled(20, 'A'),
-        points: List.filled(20, 1.0),
-      ));
+
+    // YGS için özel: Sabit 4 ders, her biri 40 soru
+    if (_selectedSchoolType == 'YGS') {
+      _subjectCount = 4;
+      for (int i = 0; i < 4; i++) {
+        _subjects.add(SubjectModel(
+          name: availableSubjects[i],
+          questionCount: 40,
+          answers: List.filled(40, 'A'),
+          points: List.filled(40, 1.0),
+        ));
+      }
+    } else {
+      for (int i = 0; i < _subjectCount; i++) {
+        _subjects.add(SubjectModel(
+          name: availableSubjects[i % availableSubjects.length],
+          questionCount: 20,
+          answers: List.filled(20, 'A'),
+          points: List.filled(20, 1.0),
+        ));
+      }
     }
   }
 
@@ -107,6 +122,14 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
       setState(() {
         _selectedSchoolType = newValue;
         _subjectCount = 1;
+
+        // YGS seçildiğinde otomatik olarak YGS template'i seç
+        if (newValue == 'YGS') {
+          _selectedFormTemplate = 'ygs';
+        } else if (_selectedFormTemplate == 'ygs') {
+          _selectedFormTemplate = 'simple';
+        }
+
         _initializeSubjects();
       });
     }
@@ -349,7 +372,9 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
                     color: Colors.white,
                   ),
                   dropdownColor: Colors.grey[850],
-                  items: ['A', 'B', 'C', 'D', 'E']
+                  items: ['BOŞ', 'A', 'B', 'C', 'D', 'E']
+                      .toSet()
+                      .toList()
                       .map((option) => DropdownMenuItem(
                             value: option,
                             child: Padding(
@@ -426,6 +451,8 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
 
   Color _getAnswerColor(String answer) {
     switch (answer) {
+      case 'BOŞ':
+        return Colors.grey.shade400;
       case 'A':
         return Colors.red.shade600;
       case 'B':
@@ -641,8 +668,15 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
                             value: 'simple',
                             child: Text('Basit Optik Form (Genel Amaçlı)'),
                           ),
+                          const DropdownMenuItem(
+                            value: 'ygs',
+                            child: Text(
+                                'YGS - Yükseköğretime Geçiş Sınavı (160 Soru)'),
+                          ),
                           ..._formTemplates
-                              .where((template) => template['id'] != 'simple')
+                              .where((template) =>
+                                  template['id'] != 'simple' &&
+                                  template['id'] != 'ygs')
                               .map((template) {
                             return DropdownMenuItem(
                               value: template['id'] as String,
@@ -663,7 +697,9 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
                       Text(
                         _selectedFormTemplate == 'lgs_20_20'
                             ? '⚠️ LGS formları özel yapıya sahiptir. Öğrenci bilgileri ve bölüm bazlı cevaplar otomatik okunur.'
-                            : 'ℹ️ Standart optik form şablonu. Tüm soruları manuel tanımlayın.',
+                            : _selectedFormTemplate == 'ygs'
+                                ? '📘 YGS formu: 160 soru (4 ders × 40 soru). Perspektif düzeltme ve timing mark algılama aktif.'
+                                : 'ℹ️ Standart optik form şablonu. Tüm soruları manuel tanımlayın.',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey[600],
@@ -676,7 +712,7 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Okul Türü
+              // Okul Türü / Sınav Türü
               Card(
                 elevation: 2,
                 child: Padding(
@@ -708,7 +744,7 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
                               EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           isDense: true,
                         ),
-                        items: ['Ortaokul', 'Lise']
+                        items: ['Ortaokul', 'Lise', 'YGS']
                             .map((schoolType) => DropdownMenuItem(
                                   value: schoolType,
                                   child: Text(schoolType),
@@ -722,57 +758,58 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Ders Sayısı
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.library_books,
-                              color: Colors.deepPurple, size: 18),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Ders Sayısı',
-                            style: TextStyle(
+              // Ders Sayısı (YGS için gizle, sabit 4 ders)
+              if (_selectedSchoolType != 'YGS')
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.library_books,
+                                color: Colors.deepPurple, size: 18),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'Ders Sayısı',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.deepPurple,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Slider(
+                          value: _subjectCount.toDouble(),
+                          min: 1,
+                          max: _schoolSubjects[_selectedSchoolType]!
+                              .length
+                              .toDouble(),
+                          divisions:
+                              _schoolSubjects[_selectedSchoolType]!.length - 1,
+                          label: _subjectCount.toString(),
+                          onChanged: (value) {
+                            _updateSubjectCount(value.toInt());
+                          },
+                        ),
+                        Center(
+                          child: Text(
+                            '$_subjectCount Ders',
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.deepPurple,
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Slider(
-                        value: _subjectCount.toDouble(),
-                        min: 1,
-                        max: _schoolSubjects[_selectedSchoolType]!
-                            .length
-                            .toDouble(),
-                        divisions:
-                            _schoolSubjects[_selectedSchoolType]!.length - 1,
-                        label: _subjectCount.toString(),
-                        onChanged: (value) {
-                          _updateSubjectCount(value.toInt());
-                        },
-                      ),
-                      Center(
-                        child: Text(
-                          '$_subjectCount Ders',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple,
-                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(height: 16),
 
               // Ders Ayarları
