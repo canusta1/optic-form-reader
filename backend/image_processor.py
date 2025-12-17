@@ -109,8 +109,11 @@ class OptikFormOkuyucu:
             duzeltilmis = self.perspektif_duzelt(orijinal)
             
             if duzeltilmis is None:
-                print("⚠️  Perspektif düzeltme başarısız, orijinal kullanılıyor")
-                duzeltilmis = orijinal.copy()
+                return {'success': False, 'error': 'Perspektif düzeltme başarısız'}
+            
+            # 2.5 Yöneliş kontrolü (orientation check) - Kağıt doğru yöneliş'te mi?
+            print("📐 Yöneliş kontrolü yapılıyor...")
+            duzeltilmis = self.yonelisini_kontrol_et(duzeltilmis)
             
             # 3. Bölgeleri çıkar (sadece renkli görüntüden)
             print("📐 Form bölgeleri çıkarılıyor...")
@@ -118,8 +121,8 @@ class OptikFormOkuyucu:
             
             # 4. Ad/Soyad oku
             print("👤 Ad/Soyad okunuyor...")
-            ad = self.isim_oku_renkli(bolgeler.get('ad'), 12)
-            soyad = self.isim_oku_renkli(bolgeler.get('soyad'), 12)
+            ad = self.isim_oku_renkli(bolgeler.get('ad'), 12, 'ad')
+            soyad = self.isim_oku_renkli(bolgeler.get('soyad'), 12, 'soyisim')
             
             print(f"   Ad: {ad}")
             print(f"   Soyad: {soyad}")
@@ -196,6 +199,30 @@ class OptikFormOkuyucu:
             import traceback
             traceback.print_exc()
             return {'success': False, 'error': str(e)}
+    
+    def yonelisini_kontrol_et(self, goruntu: np.ndarray) -> np.ndarray:
+        """
+        Perspektif düzeltme sonrası kağıdın yöneliş'ini kontrol et.
+        Eğer kağıt 90° veya 270° döndürülmüşse, düzelt.
+        
+        YGS formu: 1600x2264 (genişlik x yükseklik, A4 oranı)
+        Eğer ters tutulmuşsa: 2264x1600 olacak → 90° döndür
+        """
+        h, w = goruntu.shape[:2]
+        
+        # Beklenen oran: yükseklik > genişlik (portrait mode)
+        # Eğer genişlik > yükseklik ise (landscape mode), 90° döndür
+        if w > h:
+            print(f"⚠️  Kağıt yan çevrilmiş! ({w}x{h}) → Düzeltiliyor...")
+            # 90 derece saat yönünde döndür (veya -90 saat yönü tersine)
+            goruntu = cv2.rotate(goruntu, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            h, w = goruntu.shape[:2]
+            print(f"✅ Düzeltildi: {w}x{h}")
+            
+            if self.debug_mode:
+                cv2.imwrite(f"{self.debug_dir}/1e_yonelisli.jpg", goruntu)
+        
+        return goruntu
     
     def perspektif_duzelt(self, goruntu: np.ndarray) -> Optional[np.ndarray]:
         """
@@ -546,16 +573,60 @@ class OptikFormOkuyucu:
     def koseler_sirala(self, noktalar: np.ndarray) -> np.ndarray:
         """
         4 köşe noktasını sırala: sol-üst, sağ-üst, sağ-alt, sol-alt
+        
+        ÖNEMLİ: Kağıt her zaman dikey (portrait) modda olmalı!
+        Yani yükseklik > genişlik olmalı.
+        
+        Basit ve güvenilir algoritma:
+        1. Y koordinatına göre üst 2 ve alt 2 noktayı ayır
+        2. X koordinatına göre sol ve sağ noktaları belirle
+        3. Portrait/Landscape kontrolü yap
         """
-        # Toplam değere göre sırala
-        toplam = noktalar.sum(axis=1)
-        fark = np.diff(noktalar, axis=1).flatten()
+        noktalar = noktalar.astype(np.float32)
+        
+        # Y koordinatına göre sırala (küçükten büyüğe = üstten alta)
+        y_sirali = noktalar[np.argsort(noktalar[:, 1])]
+        
+        # Üst 2 nokta (Y değeri küçük olanlar)
+        ust_noktalar = y_sirali[:2]
+        # Alt 2 nokta (Y değeri büyük olanlar)
+        alt_noktalar = y_sirali[2:]
+        
+        # Üst noktaları X'e göre sırala (sol, sağ)
+        ust_noktalar = ust_noktalar[np.argsort(ust_noktalar[:, 0])]
+        # Alt noktaları X'e göre sırala (sol, sağ)
+        alt_noktalar = alt_noktalar[np.argsort(alt_noktalar[:, 0])]
+        
+        # Sıralama: sol-üst, sağ-üst, sağ-alt, sol-alt
+        sol_ust = ust_noktalar[0]
+        sag_ust = ust_noktalar[1]
+        sol_alt = alt_noktalar[0]
+        sag_alt = alt_noktalar[1]
+        
+        # Genişlik ve yükseklik hesapla
+        genislik = np.linalg.norm(sag_ust - sol_ust)
+        yukseklik = np.linalg.norm(sol_alt - sol_ust)
         
         sirali = np.zeros((4, 2), dtype=np.float32)
-        sirali[0] = noktalar[np.argmin(toplam)]  # Sol üst
-        sirali[2] = noktalar[np.argmax(toplam)]  # Sağ alt
-        sirali[1] = noktalar[np.argmin(fark)]    # Sağ üst
-        sirali[3] = noktalar[np.argmax(fark)]    # Sol alt
+        
+        # A4 kağıt dikey (portrait) olmalı: yükseklik > genişlik
+        if genislik > yukseklik:
+            # Kağıt yatay (landscape) - 90 derece döndürülmeli
+            # Köşeleri saat yönünde 90 derece döndür
+            # Eski sağ-üst -> yeni sol-üst
+            # Eski sağ-alt -> yeni sağ-üst
+            # Eski sol-alt -> yeni sağ-alt
+            # Eski sol-üst -> yeni sol-alt
+            sirali[0] = sag_ust   # Yeni sol-üst
+            sirali[1] = sag_alt   # Yeni sağ-üst
+            sirali[2] = sol_alt   # Yeni sağ-alt
+            sirali[3] = sol_ust   # Yeni sol-alt
+        else:
+            # Kağıt zaten dikey (portrait) - doğru sırada
+            sirali[0] = sol_ust
+            sirali[1] = sag_ust
+            sirali[2] = sag_alt
+            sirali[3] = sol_alt
         
         return sirali
     
@@ -1212,7 +1283,7 @@ class OptikFormOkuyucu:
         
         return doluluk
     
-    def isim_oku_renkli(self, bolge_renkli: np.ndarray, max_karakter: int = 12) -> str:
+    def isim_oku_renkli(self, bolge_renkli: np.ndarray, max_karakter: int = 12, bolge_adi: str = "isim") -> str:
         """
         Renkli bölgeden isim oku - HoughCircles yöntemi ile (derslerdeki gibi)
         Yan yana sütunlar, her sütun bir harf pozisyonu
@@ -1354,8 +1425,8 @@ class OptikFormOkuyucu:
         
         # Debug kaydet
         if self.debug_mode:
-            cv2.imwrite(f"{self.debug_dir}/isim_circles.jpg", debug_img)
-            print(f"      İsim tespit: {isim_str}")
+            cv2.imwrite(f"{self.debug_dir}/{bolge_adi}_circles.jpg", debug_img)
+            print(f"      {bolge_adi.capitalize()} tespit: {isim_str}")
         
         return isim_str
     

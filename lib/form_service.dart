@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'auth_service.dart';
+import 'api_config.dart';
 
 class FormService {
-  static const String baseUrl = 'http://127.0.0.1:5000';
+  static String get baseUrl => ApiConfig.baseUrl;
 
   // Form şablonlarını getir
   static Future<List<Map<String, dynamic>>> getFormTemplates() async {

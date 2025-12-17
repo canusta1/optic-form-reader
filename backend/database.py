@@ -186,7 +186,14 @@ class Database:
         cursor = conn.cursor()
         
         cursor.execute('''
-            SELECT ak.*, COUNT(DISTINCT sr.id) as student_count
+            SELECT 
+                ak.*, 
+                COUNT(DISTINCT sr.id) as student_count,
+                (SELECT COUNT(*) FROM subjects s WHERE s.answer_key_id = ak.id) as subject_count,
+                (SELECT SUM(q.points) 
+                 FROM questions q 
+                 JOIN subjects s ON q.subject_id = s.id 
+                 WHERE s.answer_key_id = ak.id) as total_points
             FROM answer_keys ak
             LEFT JOIN student_results sr ON ak.id = sr.answer_key_id
             WHERE ak.user_id = ?
@@ -274,22 +281,30 @@ class Database:
         cursor.execute('SELECT * FROM answer_keys WHERE id = ?', (answer_key_id,))
         answer_key = dict(cursor.fetchone())
         
-        # Dersleri ve soruları al
+        # Dersleri al
         cursor.execute('''
-            SELECT s.*, 
-                   GROUP_CONCAT(q.correct_answer) as answers,
-                   GROUP_CONCAT(q.points) as points
-            FROM subjects s
-            LEFT JOIN questions q ON s.id = q.subject_id
-            WHERE s.answer_key_id = ?
-            GROUP BY s.id
+            SELECT id, subject_name, question_count, points_per_question
+            FROM subjects
+            WHERE answer_key_id = ?
+            ORDER BY id ASC
         ''', (answer_key_id,))
         
         subjects = []
-        for row in cursor.fetchall():
-            subject = dict(row)
-            subject['answers'] = subject['answers'].split(',') if subject['answers'] else []
-            subject['points'] = [float(p) for p in subject['points'].split(',')] if subject['points'] else []
+        for subject_row in cursor.fetchall():
+            subject = dict(subject_row)
+            subject_id = subject['id']
+            
+            # Bu dersin sorularını sıra numarasına göre al
+            cursor.execute('''
+                SELECT question_number, correct_answer, points
+                FROM questions
+                WHERE subject_id = ?
+                ORDER BY question_number ASC
+            ''', (subject_id,))
+            
+            questions = cursor.fetchall()
+            subject['answers'] = [dict(q)['correct_answer'] for q in questions]
+            subject['points'] = [dict(q)['points'] for q in questions]
             subjects.append(subject)
         
         answer_key['subjects'] = subjects

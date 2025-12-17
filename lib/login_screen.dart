@@ -55,14 +55,16 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.deepPurple.shade400,
-              Colors.purple.shade700,
+              Color(0xFF1A237E), // Deep Indigo
+              Color(0xFF2979FF), // Electric Blue
+              Color(0xFF00E5FF), // Neon Cyan
             ],
+            stops: [0.0, 0.5, 1.0],
           ),
         ),
         child: SafeArea(
@@ -73,153 +75,222 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Logo ve Başlık
-                  Icon(
-                    Icons.document_scanner_rounded,
-                    size: 100,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Optik Form Okuyucu',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.2), width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.document_scanner_rounded,
+                      size: 80,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Görüntü İşleme Projesi',
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Optik Form Okuyucu',
                     style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white70,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.2,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black26,
+                          offset: Offset(0, 4),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Yapay Zeka Destekli Analiz',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 48),
 
-                  // Login Form
-                  Card(
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Giriş Yap',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.deepPurple,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Kullanıcı Adı
-                            TextFormField(
-                              controller: _usernameController,
-                              decoration: InputDecoration(
-                                labelText: 'Kullanıcı Adı',
-                                prefixIcon: Icon(Icons.person),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Kullanıcı adı gerekli';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Şifre
-                            TextFormField(
-                              controller: _passwordController,
-                              obscureText: _obscurePassword,
-                              decoration: InputDecoration(
-                                labelText: 'Şifre',
-                                prefixIcon: Icon(Icons.lock),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility
-                                        : Icons.visibility_off,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Şifre gerekli';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Login Button
-                            SizedBox(
-                              width: double.infinity,
-                              height: 50,
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _login,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.deepPurple,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: _isLoading
-                                    ? SizedBox(
-                                        height: 24,
-                                        width: 24,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : Text(
-                                        'Giriş Yap',
-                                        style: TextStyle(fontSize: 16),
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Kayıt Ol Linki
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('Hesabınız yok mu?'),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => const RegisterScreen(),
-                                      ),
-                                    );
-                                  },
-                                  child: Text('Kayıt Ol'),
-                                ),
-                              ],
-                            ),
-                          ],
+                  // Login Form Container
+                  Container(
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 30,
+                          offset: const Offset(0, 15),
                         ),
+                      ],
+                    ),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Giriş Yap',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade800,
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+
+                          // Kullanıcı Adı
+                          TextFormField(
+                            controller: _usernameController,
+                            decoration: InputDecoration(
+                              labelText: 'Kullanıcı Adı',
+                              prefixIcon:
+                                  const Icon(Icons.person_outline_rounded),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey.shade100,
+                              contentPadding: const EdgeInsets.all(16),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Kullanıcı adı gerekli';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Şifre
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            decoration: InputDecoration(
+                              labelText: 'Şifre',
+                              prefixIcon:
+                                  const Icon(Icons.lock_outline_rounded),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey.shade100,
+                              contentPadding: const EdgeInsets.all(16),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Şifre gerekli';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 32),
+
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _login,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: Ink(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF2979FF),
+                                      Color(0xFF00E5FF)
+                                    ],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF2979FF)
+                                          .withOpacity(0.4),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: Container(
+                                  alignment: Alignment.center,
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Text(
+                                          'GİRİŞ YAP',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                            letterSpacing: 1,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: _showRegisterDialog,
+                            child: Text(
+                              'Hesabın yok mu? Kaydol',
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -231,249 +302,99 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-}
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  void _showRegisterDialog() {
+    final usernameController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final fullNameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isLoading = false;
 
-  @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
-}
-
-class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _fullNameController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-  bool _isLoading = false;
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
-
-  @override
-  void dispose() {
-    _usernameController.dispose();
-    _emailController.dispose();
-    _fullNameController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    final result = await AuthService.register(
-      _usernameController.text.trim(),
-      _emailController.text.trim(),
-      _passwordController.text,
-      _fullNameController.text.trim(),
-    );
-
-    setState(() => _isLoading = false);
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result['message']),
-        backgroundColor: result['success'] ? Colors.green : Colors.red,
-      ),
-    );
-
-    if (result['success']) {
-      Navigator.of(context).pop();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kayıt Ol'),
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 24),
-                Icon(
-                  Icons.person_add_rounded,
-                  size: 80,
-                  color: Colors.deepPurple,
-                ),
-                const SizedBox(height: 32),
-
-                // Ad Soyad
-                TextFormField(
-                  controller: _fullNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Ad Soyad',
-                    prefixIcon: Icon(Icons.badge),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Kayıt Ol'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: usernameController,
+                    decoration:
+                        const InputDecoration(labelText: 'Kullanıcı Adı'),
+                    validator: (v) => v?.isEmpty == true ? 'Gerekli' : null,
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Ad soyad gerekli';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Kullanıcı Adı
-                TextFormField(
-                  controller: _usernameController,
-                  decoration: InputDecoration(
-                    labelText: 'Kullanıcı Adı',
-                    prefixIcon: Icon(Icons.person),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  TextFormField(
+                    controller: emailController,
+                    decoration: const InputDecoration(labelText: 'E-posta'),
+                    validator: (v) => v?.isEmpty == true ? 'Gerekli' : null,
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Kullanıcı adı gerekli';
-                    }
-                    if (value.length < 3) {
-                      return 'Kullanıcı adı en az 3 karakter olmalı';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Email
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'E-posta',
-                    prefixIcon: Icon(Icons.email),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  TextFormField(
+                    controller: passwordController,
+                    decoration: const InputDecoration(labelText: 'Şifre'),
+                    obscureText: true,
+                    validator: (v) => v?.isEmpty == true ? 'Gerekli' : null,
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'E-posta gerekli';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Geçerli bir e-posta girin';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Şifre
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Şifre',
-                    prefixIcon: Icon(Icons.lock),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  TextFormField(
+                    controller: fullNameController,
+                    decoration: const InputDecoration(labelText: 'Ad Soyad'),
+                    validator: (v) => v?.isEmpty == true ? 'Gerekli' : null,
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Şifre gerekli';
-                    }
-                    if (value.length < 6) {
-                      return 'Şifre en az 6 karakter olmalı';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Şifre Tekrar
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  decoration: InputDecoration(
-                    labelText: 'Şifre Tekrar',
-                    prefixIcon: Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value != _passwordController.text) {
-                      return 'Şifreler eşleşmiyor';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 32),
-
-                // Kayıt Button
-                SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _register,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(
-                            'Kayıt Ol',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('İptal'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setState(() => isLoading = true);
+
+                      final result = await AuthService.register(
+                        usernameController.text,
+                        emailController.text,
+                        passwordController.text,
+                        fullNameController.text,
+                      );
+
+                      setState(() => isLoading = false);
+
+                      if (mounted) {
+                        if (result['success']) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Kayıt başarılı! Giriş yapabilirsiniz.')),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(result['message']),
+                                backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    },
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Text('Kaydol'),
+            ),
+          ],
         ),
       ),
     );

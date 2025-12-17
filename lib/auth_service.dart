@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'api_config.dart';
 
 class AuthService {
-  static const String baseUrl = 'http://127.0.0.1:5000';
+  static String get baseUrl => ApiConfig.baseUrl;
   static String? _token;
   static Map<String, dynamic>? _currentUser;
 

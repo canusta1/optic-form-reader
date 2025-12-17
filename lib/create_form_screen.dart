@@ -14,44 +14,11 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
   final TextEditingController _formNameController = TextEditingController();
   bool _isSaving = false;
 
-  int _subjectCount = 1;
+  int _subjectCount = 4;
   final List<SubjectModel> _subjects = [];
-  String _selectedSchoolType = 'Ortaokul';
   String _selectedFormTemplate = 'simple';
   List<Map<String, dynamic>> _formTemplates = [];
-
-  final Map<String, List<String>> _schoolSubjects = {
-    'Ortaokul': [
-      'Türkçe',
-      'Matematik',
-      'Fen Bilimleri',
-      'Sosyal Bilgiler',
-      'T.C. İnkılâp Tarihi ve Atatürkçülük',
-      'Yabancı Dil',
-      'Din Kültürü ve Ahlak Bilgisi',
-      'Beden Eğitimi',
-      'Müzik',
-      'Resim'
-    ],
-    'Lise': [
-      'TÜRK DİLİ VE EDEBİYATI',
-      'DİN KÜLTÜRÜ VE AHLAK BİLGİSİ',
-      'TARİH',
-      'T.C. İNKILAP TARİHİ VE ATATÜRKÇÜLÜK',
-      'COĞRAFYA',
-      'MATEMATİK',
-      'FİZİK',
-      'KİMYA',
-      'BİYOLOJİ',
-      'FELSEFE',
-      'BİRİNCİ YABANCI DİL',
-      'İKİNCİ YABANCI DİL',
-      'BEDEN EĞİTİMİ',
-      'GÖRSEL SANATLAR',
-      'MÜZİK'
-    ],
-    'YGS': ['TÜRKÇE', 'T.MATEMATİK', 'FEN BİLİMLER', 'SOSYAL BİL'],
-  };
+  int _currentStep = 0;
 
   @override
   void initState() {
@@ -73,65 +40,14 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
 
   void _initializeSubjects() {
     _subjects.clear();
-    final availableSubjects = _schoolSubjects[_selectedSchoolType]!;
-
-    // YGS için özel: Sabit 4 ders, her biri 40 soru
-    if (_selectedSchoolType == 'YGS') {
-      _subjectCount = 4;
-      for (int i = 0; i < 4; i++) {
-        _subjects.add(SubjectModel(
-          name: availableSubjects[i],
-          questionCount: 40,
-          answers: List.filled(40, 'A'),
-          points: List.filled(40, 1.0),
-        ));
-      }
-    } else {
-      for (int i = 0; i < _subjectCount; i++) {
-        _subjects.add(SubjectModel(
-          name: availableSubjects[i % availableSubjects.length],
-          questionCount: 20,
-          answers: List.filled(20, 'A'),
-          points: List.filled(20, 1.0),
-        ));
-      }
-    }
-  }
-
-  void _updateSubjectCount(int newCount) {
-    setState(() {
-      if (newCount > _subjectCount) {
-        final availableSubjects = _schoolSubjects[_selectedSchoolType]!;
-        for (int i = _subjectCount; i < newCount; i++) {
-          _subjects.add(SubjectModel(
-            name: availableSubjects[i % availableSubjects.length],
-            questionCount: 20,
-            answers: List.filled(20, 'A'),
-            points: List.filled(20, 1.0),
-          ));
-        }
-      } else {
-        _subjects.removeRange(newCount, _subjectCount);
-      }
-      _subjectCount = newCount;
-    });
-  }
-
-  void _onSchoolTypeChanged(String? newValue) {
-    if (newValue != null) {
-      setState(() {
-        _selectedSchoolType = newValue;
-        _subjectCount = 1;
-
-        // YGS seçildiğinde otomatik olarak YGS template'i seç
-        if (newValue == 'YGS') {
-          _selectedFormTemplate = 'ygs';
-        } else if (_selectedFormTemplate == 'ygs') {
-          _selectedFormTemplate = 'simple';
-        }
-
-        _initializeSubjects();
-      });
+    // Sabit 4 ders, her biri 40 soru
+    for (int i = 0; i < 4; i++) {
+      _subjects.add(SubjectModel(
+        name: 'Ders ${i + 1}',
+        questionCount: 40,
+        answers: List.filled(40, 'BOŞ'),
+        points: List.filled(40, 1.0),
+      ));
     }
   }
 
@@ -156,7 +72,7 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
       // Backend'e gönder
       final result = await FormService.createAnswerKey(
         _formNameController.text,
-        _selectedSchoolType,
+        'Genel', // Okul tipi artık sabit veya önemsiz
         subjectsData,
         formTemplate: _selectedFormTemplate,
       );
@@ -197,47 +113,71 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
 
   // YENİ: Kompakt Cevap Grid'i
   Widget _buildCompactAnswerGrid(SubjectModel subject, int subjectIndex) {
-    return Card(
-      elevation: 2,
+    return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade300),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Başlık
             Row(
               children: [
-                Icon(Icons.quiz, color: Colors.deepPurple, size: 18),
-                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00E5FF).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.quiz_rounded,
+                      color: Color(0xFF0091EA), size: 20),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    '${subject.name} - Cevap Anahtarı',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
+                  child: TextFormField(
+                    initialValue: subject.name,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Ders Adı',
+                      isDense: true,
                     ),
-                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A237E),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _subjects[subjectIndex] =
+                            _subjects[subjectIndex].copyWith(name: value);
+                      });
+                    },
                   ),
                 ),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.deepPurple.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: const Color(0xFF2979FF).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${subject.questionCount} Soru',
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.deepPurple,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2979FF),
                     ),
                   ),
                 ),
@@ -468,411 +408,360 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
     }
   }
 
-  Widget _buildSubjectCard(int index) {
-    final availableSubjects = _schoolSubjects[_selectedSchoolType]!;
-
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade300),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: Text(_currentStep == 0
+            ? 'Sınav Bilgileri'
+            : 'Ders ${_currentStep} / ${_subjects.length}'),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Color(0xFF1A237E)),
+        leading: _currentStep > 0
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: _previousStep,
+              )
+            : const BackButton(),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.subject, color: Colors.deepPurple, size: 18),
-                const SizedBox(width: 6),
-                Text(
-                  'Ders ${index + 1}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+      body: Column(
+        children: [
+          // Progress Indicator
+          LinearProgressIndicator(
+            value: (_currentStep + 1) / (_subjects.length + 1),
+            backgroundColor: Colors.grey[200],
+            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2979FF)),
+          ),
 
-            // Ders Adı Seçimi
-            DropdownButtonFormField<String>(
-              value: _subjects[index].name,
-              decoration: InputDecoration(
-                labelText: 'Ders Adı',
-                labelStyle: const TextStyle(color: Colors.deepPurple),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                isDense: true,
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Form(
+                key: _formKey,
+                child: _buildStepContent(),
               ),
-              style: const TextStyle(fontSize: 14),
-              items: availableSubjects
-                  .map((subject) => DropdownMenuItem(
-                        value: subject,
-                        child: Text(
-                          subject,
-                          style: const TextStyle(fontSize: 14),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _subjects[index] = _subjects[index].copyWith(name: value!);
-                });
-              },
             ),
-            const SizedBox(height: 12),
+          ),
 
-            // Soru Sayısı
-            TextFormField(
-              initialValue: _subjects[index].questionCount.toString(),
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                labelText: 'Soru Sayısı',
-                labelStyle: const TextStyle(color: Colors.deepPurple),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                isDense: true,
-              ),
-              keyboardType: TextInputType.number,
-              onChanged: (value) {
-                final questionCount = int.tryParse(value) ?? 20;
-                setState(() {
-                  _subjects[index] = _subjects[index].copyWith(
-                    questionCount: questionCount,
-                    answers: List.filled(questionCount, 'A'),
-                    points: List.filled(questionCount, 1.0),
-                  );
-                });
-              },
-            ),
-          ],
-        ),
+          _buildNavigationButtons(),
+        ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Yeni Form Oluştur',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: _saveForm,
-            icon: const Icon(Icons.save),
+  Widget _buildStepContent() {
+    if (_currentStep == 0) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Sınav Adı
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2979FF).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.edit_document,
+                          color: Color(0xFF2979FF), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Sınav Bilgileri',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A237E),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _formNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Sınav Adı',
+                    hintText: 'Örn: 8. Sınıf Deneme Sınavı 1',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          const BorderSide(color: Color(0xFF2979FF), width: 2),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Lütfen sınav adı girin';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Form Şablonu Seçimi
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2979FF).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.grid_view_rounded,
+                          color: Color(0xFF2979FF), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Form Şablonu',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A237E),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedFormTemplate,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide:
+                          const BorderSide(color: Color(0xFF2979FF), width: 2),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                      value: 'ygs',
+                      child:
+                          Text('YGS - Yükseköğretime Geçiş Sınavı (160 Soru)'),
+                    ),
+                    ..._formTemplates
+                        .where((template) =>
+                            template['id'] != 'simple' &&
+                            template['id'] != 'ygs')
+                        .map((template) {
+                      return DropdownMenuItem(
+                        value: template['id'] as String,
+                        child: Text(template['name']),
+                      );
+                    }).toList(),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedFormTemplate = value;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    } else {
+      // Subject Steps (1-based index for user, 0-based for list)
+      final subjectIndex = _currentStep - 1;
+      if (subjectIndex < _subjects.length) {
+        return _buildCompactAnswerGrid(_subjects[subjectIndex], subjectIndex);
+      }
+      return const SizedBox();
+    }
+  }
+
+  Widget _buildNavigationButtons() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: ListView(
-            children: [
-              // Form Adı
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.description,
-                              color: Colors.deepPurple, size: 18),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Form Adı',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.deepPurple,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _formNameController,
-                        decoration: const InputDecoration(
-                          hintText: 'Form adını giriniz...',
-                          border: OutlineInputBorder(),
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          isDense: true,
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Lütfen form adı giriniz';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
+      child: Row(
+        children: [
+          if (_currentStep > 0)
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _previousStep,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: const BorderSide(color: Color(0xFF2979FF)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Geri',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2979FF),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-
-              // Form Şablonu
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.article_outlined,
-                              color: Colors.deepPurple, size: 18),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Form Şablonu',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        value: _selectedFormTemplate,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          isDense: true,
-                        ),
-                        items: [
-                          const DropdownMenuItem(
-                            value: 'simple',
-                            child: Text('Basit Optik Form (Genel Amaçlı)'),
-                          ),
-                          const DropdownMenuItem(
-                            value: 'ygs',
-                            child: Text(
-                                'YGS - Yükseköğretime Geçiş Sınavı (160 Soru)'),
-                          ),
-                          ..._formTemplates
-                              .where((template) =>
-                                  template['id'] != 'simple' &&
-                                  template['id'] != 'ygs')
-                              .map((template) {
-                            return DropdownMenuItem(
-                              value: template['id'] as String,
-                              child: Text(
-                                '${template['name']} - ${template['description']}',
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            );
-                          }).toList(),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedFormTemplate = value!;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _selectedFormTemplate == 'lgs_20_20'
-                            ? '⚠️ LGS formları özel yapıya sahiptir. Öğrenci bilgileri ve bölüm bazlı cevaplar otomatik okunur.'
-                            : _selectedFormTemplate == 'ygs'
-                                ? '📘 YGS formu: 160 soru (4 ders × 40 soru). Perspektif düzeltme ve timing mark algılama aktif.'
-                                : 'ℹ️ Standart optik form şablonu. Tüm soruları manuel tanımlayın.',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ),
+            ),
+          if (_currentStep > 0) const SizedBox(width: 16),
+          Expanded(
+            flex: 2,
+            child: ElevatedButton(
+              onPressed: _isSaving ? null : _nextStep,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              const SizedBox(height: 12),
-
-              // Okul Türü / Sınav Türü
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.school,
-                              color: Colors.deepPurple, size: 18),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Okul Türü',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.deepPurple,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        value: _selectedSchoolType,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          isDense: true,
-                        ),
-                        items: ['Ortaokul', 'Lise', 'YGS']
-                            .map((schoolType) => DropdownMenuItem(
-                                  value: schoolType,
-                                  child: Text(schoolType),
-                                ))
-                            .toList(),
-                        onChanged: _onSchoolTypeChanged,
-                      ),
-                    ],
+              child: Ink(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2979FF), Color(0xFF00E5FF)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                   ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2979FF).withOpacity(0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-
-              // Ders Sayısı (YGS için gizle, sabit 4 ders)
-              if (_selectedSchoolType != 'YGS')
-                Card(
-                  elevation: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.library_books,
-                                color: Colors.deepPurple, size: 18),
-                            const SizedBox(width: 6),
-                            const Text(
-                              'Ders Sayısı',
-                              style: TextStyle(
+                            Text(
+                              _currentStep == _subjects.length
+                                  ? 'KAYDET'
+                                  : 'İLERİ',
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.deepPurple,
+                                color: Colors.white,
+                                letterSpacing: 1,
                               ),
                             ),
+                            if (_currentStep < _subjects.length) ...[
+                              const SizedBox(width: 8),
+                              const Icon(Icons.arrow_forward,
+                                  color: Colors.white),
+                            ],
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Slider(
-                          value: _subjectCount.toDouble(),
-                          min: 1,
-                          max: _schoolSubjects[_selectedSchoolType]!
-                              .length
-                              .toDouble(),
-                          divisions:
-                              _schoolSubjects[_selectedSchoolType]!.length - 1,
-                          label: _subjectCount.toString(),
-                          onChanged: (value) {
-                            _updateSubjectCount(value.toInt());
-                          },
-                        ),
-                        Center(
-                          child: Text(
-                            '$_subjectCount Ders',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.deepPurple,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 16),
-
-              // Ders Ayarları
-              const Text(
-                'Ders Ayarları',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple,
                 ),
               ),
-              const SizedBox(height: 8),
-              ...List.generate(
-                  _subjectCount, (index) => _buildSubjectCard(index)),
-
-              const SizedBox(height: 16),
-
-              // Cevap Anahtarları
-              const Text(
-                'Cevap Anahtarları',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...List.generate(_subjectCount,
-                  (index) => _buildCompactAnswerGrid(_subjects[index], index)),
-
-              const SizedBox(height: 16),
-
-              // Kaydet Butonu
-              ElevatedButton(
-                onPressed: _isSaving ? null : _saveForm,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: _isSaving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        'FORMU KAYDET',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-              ),
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
+  }
+
+  void _nextStep() {
+    if (_currentStep == 0) {
+      if (_formKey.currentState!.validate()) {
+        setState(() {
+          _currentStep++;
+        });
+      }
+    } else if (_currentStep < _subjects.length) {
+      setState(() {
+        _currentStep++;
+      });
+    } else {
+      _saveForm();
+    }
+  }
+
+  void _previousStep() {
+    if (_currentStep > 0) {
+      setState(() {
+        _currentStep--;
+      });
+    }
   }
 }

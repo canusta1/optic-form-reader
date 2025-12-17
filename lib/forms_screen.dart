@@ -10,6 +10,9 @@ class FormModel {
   final DateTime createdAt;
   final int? studentCount;
   final String? schoolType;
+  final int? cachedTotalQuestions;
+  final double? cachedTotalPoints;
+  final int? cachedSubjectCount;
 
   FormModel({
     this.id,
@@ -18,14 +21,30 @@ class FormModel {
     required this.createdAt,
     this.studentCount,
     this.schoolType,
+    this.cachedTotalQuestions,
+    this.cachedTotalPoints,
+    this.cachedSubjectCount,
   });
 
   int get totalQuestions {
-    return subjects.fold(0, (sum, subject) => sum + subject.questionCount);
+    if (subjects.isNotEmpty) {
+      return subjects.fold(0, (sum, subject) => sum + subject.questionCount);
+    }
+    return cachedTotalQuestions ?? 0;
   }
 
   double get totalPoints {
-    return subjects.fold(0.0, (sum, subject) => sum + subject.totalPoints);
+    if (subjects.isNotEmpty) {
+      return subjects.fold(0.0, (sum, subject) => sum + subject.totalPoints);
+    }
+    return cachedTotalPoints ?? 0.0;
+  }
+
+  int get subjectCount {
+    if (subjects.isNotEmpty) {
+      return subjects.length;
+    }
+    return cachedSubjectCount ?? 0;
   }
 }
 
@@ -61,71 +80,130 @@ class FormCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 4,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    form.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+      elevation: 8,
+      shadowColor: Colors.black.withOpacity(0.1),
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            colors: [Colors.white, Colors.grey.shade50],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          form.name,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A237E),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Oluşturulma: ${_formatDate(form.createdAt)}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                IconButton(
-                  onPressed: () => _showDeleteDialog(context),
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Oluşturulma: ${_formatDate(form.createdAt)}',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: IconButton(
+                      onPressed: () => _showDeleteDialog(context),
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          color: Colors.red),
+                      tooltip: 'Formu Sil',
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                _buildInfoChip(
-                  '${form.subjects.length} Ders',
-                  Icons.subject,
-                ),
-                _buildInfoChip(
-                  '${form.totalQuestions} Soru',
-                  Icons.quiz,
-                ),
-                _buildInfoChip(
-                  '${form.totalPoints.toStringAsFixed(0)} Puan',
-                  Icons.star,
-                ),
-              ],
-            ),
-          ],
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  _buildInfoChip(
+                    '${form.subjectCount} Ders',
+                    Icons.subject_rounded,
+                    const Color(0xFFE3F2FD),
+                    const Color(0xFF1565C0),
+                  ),
+                  _buildInfoChip(
+                    '${form.totalQuestions} Soru',
+                    Icons.quiz_rounded,
+                    const Color(0xFFE8F5E9),
+                    const Color(0xFF2E7D32),
+                  ),
+                  _buildInfoChip(
+                    '${form.totalPoints.toStringAsFixed(0)} Puan',
+                    Icons.star_rounded,
+                    const Color(0xFFFFF8E1),
+                    const Color(0xFFF9A825),
+                  ),
+                  if (form.studentCount != null && form.studentCount! > 0)
+                    _buildInfoChip(
+                      '${form.studentCount} Öğrenci',
+                      Icons.people_alt_rounded,
+                      const Color(0xFFF3E5F5),
+                      const Color(0xFF7B1FA2),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoChip(String text, IconData icon) {
-    return Chip(
-      label: Text(text),
-      avatar: Icon(icon, size: 16),
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
+  Widget _buildInfoChip(
+      String text, IconData icon, Color bgColor, Color iconColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: iconColor.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: iconColor),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              color: iconColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -193,6 +271,9 @@ class _FormsScreenState extends State<FormsScreen> {
             createdAt: DateTime.parse(key['created_at']),
             studentCount: key['student_count'] ?? 0,
             schoolType: key['school_type'],
+            cachedTotalQuestions: key['total_questions'],
+            cachedTotalPoints: (key['total_points'] as num?)?.toDouble(),
+            cachedSubjectCount: key['subject_count'],
           );
         }).toList();
         _isLoading = false;
@@ -222,12 +303,15 @@ class _FormsScreenState extends State<FormsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Formlarım'),
         centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadForms,
           ),
         ],
@@ -235,27 +319,47 @@ class _FormsScreenState extends State<FormsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _forms.isEmpty
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.assignment, size: 80, color: Colors.grey),
-                      SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(30),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.2),
+                              blurRadius: 20,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                        child: Icon(Icons.assignment_outlined,
+                            size: 80, color: Colors.grey.shade400),
+                      ),
+                      const SizedBox(height: 24),
                       Text(
                         'Henüz form oluşturmadınız',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade700,
+                        ),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       Text(
-                        'Aşağıdaki + butonuna tıklayarak yeni form oluşturun',
+                        'Aşağıdaki + butonuna tıklayarak\nyeni bir optik form şablonu oluşturun',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey),
+                        style:
+                            TextStyle(color: Colors.grey.shade600, height: 1.5),
                       ),
                     ],
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                   itemCount: _forms.length,
                   itemBuilder: (context, index) {
                     return FormCard(
@@ -267,10 +371,33 @@ class _FormsScreenState extends State<FormsScreen> {
                     );
                   },
                 ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToCreateForm,
-        backgroundColor: Colors.deepPurple,
-        child: const Icon(Icons.add, color: Colors.white),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 80.0),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2979FF), Color(0xFF00E5FF)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2979FF).withOpacity(0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: FloatingActionButton(
+            onPressed: _navigateToCreateForm,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: const Icon(Icons.add_rounded, color: Colors.white, size: 32),
+          ),
+        ),
       ),
     );
   }
