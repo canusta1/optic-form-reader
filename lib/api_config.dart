@@ -1,9 +1,9 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiConfig {
   // Değiştirebilecek değişkenler
-  static String _baseUrl =
-      'http://10.0.2.2:5000'; // Android Emülatörü varsayılan
+  static String _baseUrl = 'http://localhost:5000'; // Varsayılan
 
   static String get baseUrl => _baseUrl;
 
@@ -15,16 +15,18 @@ class ApiConfig {
     }
 
     // Platform kontrolü
-    if (Platform.isAndroid) {
+    if (kIsWeb) {
+      // Web (Chrome, Firefox vb.)
+      _baseUrl = 'http://localhost:5000';
+    } else if (Platform.isAndroid) {
       // Android emülatörü
       _baseUrl = 'http://10.0.2.2:5000';
     } else if (Platform.isIOS) {
       // iOS cihaz - aşağıdaki IP adresleri manuel ayarlanmalı
-      // WiFi IP adresini test et veya settings'ten config et
       _baseUrl =
           'http://192.168.1.100:5000'; // Bu değeri cihazın IP'si ile değiştir
     } else {
-      _baseUrl = 'http://10.0.2.2:5000';
+      _baseUrl = 'http://localhost:5000';
     }
   }
 
@@ -36,6 +38,9 @@ class ApiConfig {
   // Geçerli IP'yi debug için yazdır
   static void printConfig() {
     print('🔌 API Base URL: $_baseUrl');
-    print('📱 Platform: ${Platform.operatingSystem}');
+    print('🌐 Is Web: $kIsWeb');
+    if (!kIsWeb) {
+      print('📱 Platform: ${Platform.operatingSystem}');
+    }
   }
 }

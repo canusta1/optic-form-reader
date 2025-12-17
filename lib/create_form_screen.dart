@@ -16,7 +16,7 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
 
   int _subjectCount = 4;
   final List<SubjectModel> _subjects = [];
-  String _selectedFormTemplate = 'simple';
+  String _selectedFormTemplate = 'ygs';
   List<Map<String, dynamic>> _formTemplates = [];
   int _currentStep = 0;
 

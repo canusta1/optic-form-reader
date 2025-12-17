@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'form_service.dart';
+import 'student_result_detail_screen.dart';
 
 class ExamDetailScreen extends StatefulWidget {
   final int answerKeyId;
@@ -236,51 +237,69 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                         (result['success_rate'] as num?)?.toDouble();
                     final totalScore =
                         (result['total_score'] as num?)?.toDouble();
+                    final resultId = result['id'] as int?;
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       elevation: 2,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        leading: CircleAvatar(
-                          backgroundColor:
-                              _getScoreColor(successRate).withOpacity(0.1),
-                          child: Text(
-                            '${index + 1}',
-                            style: TextStyle(
-                              color: _getScoreColor(successRate),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          studentName,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        subtitle: Text('No: $studentNumber'),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '%${successRate?.toStringAsFixed(1) ?? "0"}',
+                      child: InkWell(
+                        onTap: resultId != null
+                            ? () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        StudentResultDetailScreen(
+                                      resultId: resultId,
+                                      studentName: studentName,
+                                    ),
+                                  ),
+                                );
+                              }
+                            : null,
+                        borderRadius: BorderRadius.circular(12),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(16),
+                          leading: CircleAvatar(
+                            backgroundColor:
+                                _getScoreColor(successRate).withOpacity(0.1),
+                            child: Text(
+                              '${index + 1}',
                               style: TextStyle(
                                 color: _getScoreColor(successRate),
                                 fontWeight: FontWeight.bold,
-                                fontSize: 18,
                               ),
                             ),
-                            Text(
-                              '${totalScore?.toStringAsFixed(1) ?? "0"} Puan',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
+                          ),
+                          title: Text(
+                            studentName,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          subtitle: Text('No: $studentNumber'),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '%${successRate?.toStringAsFixed(1) ?? "0"}',
+                                style: TextStyle(
+                                  color: _getScoreColor(successRate),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
                               ),
-                            ),
-                          ],
+                              Text(
+                                '${totalScore?.toStringAsFixed(1) ?? "0"} Puan',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );

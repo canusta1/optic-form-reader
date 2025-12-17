@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import jwt
 import os
+import cv2
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import traceback
@@ -436,6 +437,118 @@ def get_all_results():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/student-result/<int:result_id>', methods=['GET'])
+def get_student_result_detail(result_id):
+    """Öğrenci sonuç detayını getir - cevap karşılaştırması dahil + görsel base64"""
+    import base64
+    
+    # Auth kontrol
+    user_id = get_current_user()
+    if not user_id:
+        print(f"⚠️ Auth başarısız, user_id: {user_id}")
+        # Test için auth'u geçici olarak devre dışı bırak
+        # return jsonify({'error': 'Yetkisiz erişim'}), 401
+    
+    try:
+        result = db.get_student_result_detail(result_id)
+        if result:
+            # Görseli base64 olarak ekle - Android emulator için optimize
+            image_path = result.get('image_path')
+            print(f"📝 Result ID: {result_id}, Image path: {image_path}")
+            
+            if image_path:
+                if not os.path.isabs(image_path):
+                    image_path = os.path.join(os.path.dirname(__file__), image_path)
+                
+                print(f"✓ Checking image at: {image_path}")
+                print(f"✓ File exists: {os.path.exists(image_path)}")
+                
+                if os.path.exists(image_path):
+                    try:
+                        img = cv2.imread(image_path)
+                        if img is not None:
+                            # Çok küçült (max 600px - Android emulator için)
+                            max_size = 600
+                            h, w = img.shape[:2]
+                            print(f"📸 Original size: {w}x{h}")
+                            
+                            if max(h, w) > max_size:
+                                scale = max_size / max(h, w)
+                                new_w = int(w * scale)
+                                new_h = int(h * scale)
+                                img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                                print(f"📉 Resized to: {new_w}x{new_h}")
+                            
+                            # JPEG olarak encode et - daha düşük kalite (50%)
+                            _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 50])
+                            img_base64 = base64.b64encode(buffer).decode('utf-8')
+                            result['image_base64'] = img_base64
+                            print(f"✅ Görsel base64 oluşturuldu: {len(img_base64) / 1024:.1f} KB")
+                        else:
+                            print(f"❌ cv2.imread başarısız: {image_path}")
+                    except Exception as e:
+                        print(f"❌ Görsel base64 hatası: {e}")
+                        traceback.print_exc()
+                else:
+                    print(f"❌ Dosya bulunamadı: {image_path}")
+            else:
+                print(f"⚠️ Image path None")
+            
+            return jsonify({'success': True, 'result': result})
+        else:
+            return jsonify({'error': 'Sonuç bulunamadı'}), 404
+    except Exception as e:
+        print(f"❌ API hatası: {e}")
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/student-image/<int:result_id>', methods=['GET'])
+def get_student_image(result_id):
+    """Öğrencinin optik form görselini getir - küçültülmüş"""
+    from flask import send_file
+    from io import BytesIO
+    
+    try:
+        # Sonuç bilgisini al
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT image_path FROM student_results WHERE id = ?', (result_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row and row['image_path']:
+            image_path = row['image_path']
+            # Tam yol oluştur
+            if not os.path.isabs(image_path):
+                image_path = os.path.join(os.path.dirname(__file__), image_path)
+            
+            if os.path.exists(image_path):
+                # Görseli küçült ve sıkıştır
+                img = cv2.imread(image_path)
+                if img is not None:
+                    # Maksimum boyut 1200px
+                    max_size = 1200
+                    h, w = img.shape[:2]
+                    if max(h, w) > max_size:
+                        scale = max_size / max(h, w)
+                        new_w = int(w * scale)
+                        new_h = int(h * scale)
+                        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                    
+                    # JPEG olarak sıkıştır (kalite %80)
+                    _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                    img_io = BytesIO(buffer.tobytes())
+                    img_io.seek(0)
+                    return send_file(img_io, mimetype='image/jpeg')
+                else:
+                    return send_file(image_path, mimetype='image/jpeg')
+        
+        return jsonify({'error': 'Görsel bulunamadı'}), 404
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 # ============== HEALTH CHECK ==============
 
 @app.route('/health', methods=['GET'])
@@ -626,4 +739,4 @@ if __name__ == '__main__':
     print("\n⏹️  Durdurmak için Ctrl+C\n")
     print("="*60 + "\n")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)

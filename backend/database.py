@@ -376,3 +376,73 @@ class Database:
         results = [dict(row) for row in cursor.fetchall()]
         conn.close()
         return results
+
+    def get_student_result_detail(self, result_id):
+        """Öğrenci sonuç detaylarını getir - cevap karşılaştırması dahil"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        # Öğrenci sonuç bilgilerini al
+        cursor.execute('''
+            SELECT sr.*, ak.exam_name, ak.form_template
+            FROM student_results sr
+            JOIN answer_keys ak ON sr.answer_key_id = ak.id
+            WHERE sr.id = ?
+        ''', (result_id,))
+        
+        result_row = cursor.fetchone()
+        if not result_row:
+            conn.close()
+            return None
+        
+        result = dict(result_row)
+        answer_key_id = result['answer_key_id']
+        
+        # Ders bazlı istatistikler - sadece student_answers ve subjects tablosunu kullan
+        cursor.execute('''
+            SELECT 
+                s.subject_name,
+                s.id as subject_id,
+                s.question_count as total_questions,
+                s.points_per_question,
+                SUM(CASE WHEN sa.is_correct = 1 THEN 1 ELSE 0 END) as correct_count,
+                SUM(CASE WHEN sa.is_correct = 0 AND sa.student_answer NOT IN ('', 'BOŞ', 'HATALI') AND sa.student_answer IS NOT NULL THEN 1 ELSE 0 END) as wrong_count,
+                SUM(CASE WHEN sa.student_answer IN ('', 'BOŞ', 'HATALI') OR sa.student_answer IS NULL THEN 1 ELSE 0 END) as empty_count,
+                SUM(sa.points_earned) as points_earned
+            FROM student_answers sa
+            JOIN subjects s ON sa.subject_id = s.id
+            WHERE sa.result_id = ?
+            GROUP BY s.id
+            ORDER BY s.id
+        ''', (result_id,))
+        
+        subjects_stats = []
+        for row in cursor.fetchall():
+            stat = dict(row)
+            stat['total_points'] = stat['total_questions'] * stat['points_per_question']
+            subjects_stats.append(stat)
+        
+        result['subjects_stats'] = subjects_stats
+        
+        # Tüm cevapları al (soru bazlı karşılaştırma için) - basitleştirilmiş sorgu
+        cursor.execute('''
+            SELECT 
+                sa.question_number,
+                sa.student_answer,
+                sa.correct_answer,
+                sa.is_correct,
+                sa.points_earned,
+                s.subject_name,
+                s.id as subject_id,
+                s.points_per_question as max_points
+            FROM student_answers sa
+            JOIN subjects s ON sa.subject_id = s.id
+            WHERE sa.result_id = ?
+            ORDER BY s.id, sa.question_number
+        ''', (result_id,))
+        
+        answers = [dict(row) for row in cursor.fetchall()]
+        result['answers'] = answers
+        
+        conn.close()
+        return result
