@@ -7,9 +7,12 @@ import 'login_screen.dart';
 import 'auth_service.dart';
 import 'api_config.dart';
 
-void main() {
-  // API bağlantı ayarlarını başlat
-  ApiConfig.initializeBaseUrl();
+void main() async {
+  // Flutter binding'leri başlat (async main için gerekli)
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // API bağlantı ayarlarını başlat (kaydedilmiş IP varsa yükler)
+  await ApiConfig.initializeBaseUrl();
   ApiConfig.printConfig();
   runApp(const OpticFormApp());
 }

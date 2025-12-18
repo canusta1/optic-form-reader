@@ -8,7 +8,9 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-DEBUG_DIR = "debug_images"
+# Debug klasörü - parent directory'de (workspace root)
+DEBUG_DIR = os.path.join(os.path.dirname(__file__), '..', 'debug_images')
+DEBUG_DIR = os.path.abspath(DEBUG_DIR)
 
 # Debug klasörünü oluştur
 os.makedirs(DEBUG_DIR, exist_ok=True)
