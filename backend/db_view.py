@@ -1,7 +1,3 @@
-"""
-Veritabanı Görüntüleyici
-Kullanım: python db_view.py [tablo_adı]
-"""
 import sqlite3
 import sys
 

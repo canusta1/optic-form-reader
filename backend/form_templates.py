@@ -1,19 +1,4 @@
-"""
-Optik form şablonları - Farklı sınav tiplerinin yapısını tanımlar
 
-YGS Form Yapısı:
-================
-SOL TARAF (Kimlik):
-- AD: 10 sütun × 29 satır (her sütun bir harf pozisyonu)
-- SOYAD: 10 sütun × 29 satır
-
-SAĞ TARAF (Cevaplar):
-- 4 ders kutusu: TÜRKÇE, MATEMATİK, FEN BİLİMLERİ, SOSYAL BİL
-- Her ders: 40 soru × 5 şık = 200 bubble
-- Toplam: 160 soru × 5 = 800 bubble
-"""
-
-# Türk alfabesi (29 harf)
 TURKISH_ALPHABET = [
     'A', 'B', 'C', 'Ç', 'D', 'E', 'F', 'G', 'Ğ', 'H',
     'I', 'İ', 'J', 'K', 'L', 'M', 'N', 'O', 'Ö', 'P',
@@ -26,17 +11,17 @@ YGS_TEMPLATE = {
     'total_questions': 160,
     'use_coordinates': True,
     
-    # Hedef boyut (perspektif düzeltme sonrası)
+    # perspektif düzeltme sonrası beklenen boyut
     'target_size': (2480, 3508),
     
-    # ========== KİMLİK BİLGİLERİ (SOL TARAF) ==========
+    # sol taraf kimlik bilgileri    
     'name_section': {
         'name': 'AD',
-        'columns': 10,      # 10 harf pozisyonu
-        'rows': 29,         # 29 Türk harfi
+        'columns': 10,      
+        'rows': 29,        
         'alphabet': TURKISH_ALPHABET,
-        'x_range': (0, 826),        # X koordinat aralığı
-        'y_range': (0, 1754),       # Y koordinat aralığı (yarı yükseklik)
+        'x_range': (0, 826),      
+        'y_range': (0, 1754),      
     },
     
     'surname_section': {
@@ -45,10 +30,10 @@ YGS_TEMPLATE = {
         'rows': 29,
         'alphabet': TURKISH_ALPHABET,
         'x_range': (0, 826),
-        'y_range': (1754, 3508),    # AD'nin altında
+        'y_range': (1754, 3508),    
     },
     
-    # ========== CEVAP ALANLARI (SAĞ TARAF) ==========
+    # sağ taraf cevap alanları  
     'answer_sections': [
         {
             'name': 'TÜRKÇE',
@@ -99,27 +84,24 @@ YGS_TEMPLATE = {
         'upper_red1': [10, 255, 255],
         'lower_red2': [160, 50, 50],
         'upper_red2': [180, 255, 255],
-        'min_fill_score': 140,      # İşaretli bubble threshold
-        'min_difference': 15,       # İkinciden fark threshold
+        'min_fill_score': 140,     
+        'min_difference': 15,   
     },
     
-    # Perspektif düzeltme
+  
     'perspective_correction': {
         'enabled': True,
     }
 }
 
-# Tüm şablonlar
 FORM_TEMPLATES = {
     'ygs': YGS_TEMPLATE
 }
 
-def get_template(template_name='simple'):
-    """Şablon adına göre form şablonu döndür"""
-    return FORM_TEMPLATES.get(template_name, None)
+def get_template(template_name='ygs'):
+    return FORM_TEMPLATES.get(template_name)
 
 def list_templates():
-    """Mevcut tüm şablonları listele"""
     return [
         {
             'id': key,

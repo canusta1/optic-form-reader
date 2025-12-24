@@ -1,18 +1,13 @@
-"""
-Debug Görüntü Sunucusu
-OMR işleme adımlarını görselleştirmek için basit web arayüzü
-"""
+
 from flask import Flask, render_template_string, send_from_directory, jsonify
 import os
 from datetime import datetime
 
 app = Flask(__name__)
 
-# Debug klasörü - parent directory'de (workspace root)
 DEBUG_DIR = os.path.join(os.path.dirname(__file__), '..', 'debug_images')
 DEBUG_DIR = os.path.abspath(DEBUG_DIR)
 
-# Debug klasörünü oluştur
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
 HTML_TEMPLATE = """
@@ -58,6 +53,22 @@ HTML_TEMPLATE = """
         .refresh-btn:hover {
             transform: scale(1.05);
             box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+        .clear-btn {
+            background: linear-gradient(90deg, #e74c3c, #c0392b);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            margin-left: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .clear-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(231, 76, 60, 0.4);
         }
         .container {
             max-width: 1400px;
@@ -179,6 +190,7 @@ HTML_TEMPLATE = """
         <h1>🔍 OMR Debug Görüntüleyici</h1>
         <p>Optik form işleme adımlarını görselleştirin</p>
         <button class="refresh-btn" onclick="location.reload()">🔄 Yenile</button>
+        <button class="clear-btn" onclick="clearImages()">🗑️ Temizle</button>
     </div>
     
     <div class="container">
@@ -235,6 +247,14 @@ HTML_TEMPLATE = """
         }
         function closeModal() {
             document.getElementById('modal').classList.remove('active');
+        }
+        function clearImages() {
+            if (confirm('Tüm debug görüntüleri silinsin mi?')) {
+                fetch('/api/clear').then(res => res.json()).then(data => {
+                    alert(data.message);
+                    location.reload();
+                });
+            }
         }
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeModal();
@@ -296,9 +316,9 @@ def categorize_images(images):
     categories = {
         '1️⃣ Ön İşleme': [],
         '2️⃣ Perspektif Düzeltme': [],
-        '3️⃣ Bölge Çıkarma': [],
-        '4️⃣ Baloncuk Tespiti': [],
-        '5️⃣ Diğer': []
+        '3️⃣ Diğer': [],
+        '4️⃣ Bölge Çıkarma': [],
+        '5️⃣ Baloncuk Tespiti': []
     }
     
     for img in images:
@@ -308,11 +328,11 @@ def categorize_images(images):
         elif '1' in name[0:2] or 'perspektif' in name or 'kose' in name:
             categories['2️⃣ Perspektif Düzeltme'].append(img)
         elif 'bolge' in name:
-            categories['3️⃣ Bölge Çıkarma'].append(img)
+            categories['4️⃣ Bölge Çıkarma'].append(img)
         elif 'circle' in name or 'bubble' in name:
-            categories['4️⃣ Baloncuk Tespiti'].append(img)
+            categories['5️⃣ Baloncuk Tespiti'].append(img)
         else:
-            categories['5️⃣ Diğer'].append(img)
+            categories['3️⃣ Diğer'].append(img)
     
     # Boş kategorileri kaldır
     return {k: v for k, v in categories.items() if v}
@@ -354,15 +374,27 @@ def api_images():
 
 @app.route('/api/clear')
 def api_clear():
-    """API: Debug görüntülerini temizle"""
+    """API: Debug görüntülerini temizle (orijinal görüntü hariç)"""
     count = 0
+    kept = 0
+    # Korunacak dosyalar - ana form görüntüsü
+    protected_files = ['0_orijinal.jpg', '0_orijinal.png']
+    
     if os.path.exists(DEBUG_DIR):
         for filename in os.listdir(DEBUG_DIR):
             filepath = os.path.join(DEBUG_DIR, filename)
             if os.path.isfile(filepath):
+                # Korunan dosyaları silme
+                if filename in protected_files:
+                    kept += 1
+                    continue
                 os.remove(filepath)
                 count += 1
-    return jsonify({'cleared': count, 'message': f'{count} görüntü silindi'})
+    return jsonify({
+        'cleared': count, 
+        'kept': kept,
+        'message': f'{count} görüntü silindi, {kept} korundu'
+    })
 
 if __name__ == '__main__':
     print("\n" + "="*50)

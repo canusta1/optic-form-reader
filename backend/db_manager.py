@@ -1,6 +1,3 @@
-"""
-Veritabanı yönetim ve kontrol aracı
-"""
 import sqlite3
 from database import Database
 import sys
@@ -34,7 +31,7 @@ def show_database_info():
     for table in tables:
         cursor.execute(f"SELECT COUNT(*) FROM {table}")
         count = cursor.fetchone()[0]
-        print(f"📊 {table.ljust(20)} : {count} kayıt")
+        print(f"{table.ljust(20)} : {count} kayıt")
     
     conn.close()
 
@@ -52,7 +49,7 @@ def list_all_users():
     print("="*60)
     
     if not users:
-        print("\n⚠️  Henüz kullanıcı yok!")
+        print("\nHenüz kullanıcı yok!")
     else:
         print(f"\n{'ID':<5} {'Kullanıcı Adı':<15} {'Email':<25} {'Ad Soyad':<20}")
         print("-" * 80)
@@ -82,7 +79,7 @@ def list_all_answer_keys():
     print("="*60)
     
     if not keys:
-        print("\n⚠️  Henüz cevap anahtarı yok!")
+        print("\nHenüz cevap anahtarı yok!")
     else:
         print(f"\n{'ID':<5} {'Kullanıcı':<15} {'Sınav Adı':<25} {'Tip':<12} {'Soru Sayısı':<12}")
         print("-" * 80)
@@ -112,7 +109,7 @@ def list_all_results():
     print("="*60)
     
     if not results:
-        print("\n⚠️  Henüz sonuç yok!")
+        print("\nHenüz sonuç yok!")
     else:
         print(f"\n{'ID':<5} {'Öğrenci Adı':<20} {'No':<10} {'Sınav':<20} {'Puan':<8} {'Başarı %':<10}")
         print("-" * 90)
@@ -123,69 +120,14 @@ def list_all_results():
     
     conn.close()
 
-def create_test_user():
-    """Test kullanıcısı oluştur"""
-    db = Database()
-    
-    print("\n" + "="*60)
-    print("  TEST KULLANICISI OLUŞTUR")
-    print("="*60)
-    
-    # Test kullanıcısı bilgileri
-    test_users = [
-        {
-            'username': 'ogretmen',
-            'email': 'ogretmen@test.com',
-            'password': '123456',
-            'full_name': 'Test Öğretmen'
-        },
-        {
-            'username': 'admin',
-            'email': 'admin@test.com',
-            'password': 'admin123',
-            'full_name': 'Yönetici'
-        }
-    ]
-    
-    print("\nHangi test kullanıcısını oluşturmak istiyorsunuz?")
-    print("[1] ogretmen (Şifre: 123456)")
-    print("[2] admin (Şifre: admin123)")
-    print("[3] İkisi de")
-    choice = input("\nSeçim: ")
-    
-    users_to_create = []
-    if choice == "1":
-        users_to_create = [test_users[0]]
-    elif choice == "2":
-        users_to_create = [test_users[1]]
-    elif choice == "3":
-        users_to_create = test_users
-    else:
-        print("❌ Geçersiz seçim!")
-        return
-    
-    for user in users_to_create:
-        user_id = db.create_user(
-            user['username'],
-            user['email'],
-            user['password'],
-            user['full_name']
-        )
-        
-        if user_id:
-            print(f"✅ Kullanıcı oluşturuldu: {user['username']} (ID: {user_id})")
-            print(f"   Email: {user['email']}")
-            print(f"   Şifre: {user['password']}")
-        else:
-            print(f"❌ Kullanıcı oluşturulamadı (zaten mevcut olabilir): {user['username']}")
 
 def clear_database():
     """Veritabanını temizle"""
     print("\n" + "="*60)
-    print("  ⚠️  VERİTABANINI TEMİZLE")
+    print(" VERİTABANINI TEMİZLE")
     print("="*60)
     
-    print("\n❗ UYARI: Bu işlem TÜM verileri silecektir!")
+    print("\nUYARI: Bu işlem TÜM verileri silecektir!")
     print("\nHangi tabloları temizlemek istiyorsunuz?")
     print("[1] Sadece sonuçları sil (student_results, student_answers)")
     print("[2] Cevap anahtarları ve sonuçları sil")
@@ -199,7 +141,7 @@ def clear_database():
         print("İşlem iptal edildi.")
         return
     
-    confirm = input("\n⚠️  Emin misiniz? (EVET yazın): ")
+    confirm = input("\nEmin misiniz? (EVET yazın): ")
     if confirm != "EVET":
         print("İşlem iptal edildi.")
         return
@@ -251,7 +193,7 @@ def clear_database():
         conn.close()
 
 def show_table_structures():
-    """Tablo yapılarını göster"""
+    
     db = Database()
     conn = db.get_connection()
     cursor = conn.cursor()

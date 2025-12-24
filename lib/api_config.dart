@@ -33,7 +33,7 @@ class ApiConfig {
     } else if (Platform.isIOS) {
       // iOS cihaz - aşağıdaki IP adresleri manuel ayarlanmalı
       _baseUrl =
-          'http://192.168.1.100:5000'; // Bu değeri cihazın IP'si ile değiştir
+          'http://192.168.1.100:5000'; /
     } else {
       _baseUrl = 'http://localhost:5000';
     }

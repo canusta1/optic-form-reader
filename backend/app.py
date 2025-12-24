@@ -14,33 +14,42 @@ from image_processor import OptikFormOkuyucu
 app = Flask(__name__)
 CORS(app)
 
-# Konfigürasyon
 app.config['SECRET_KEY'] = 'optic-form-secret-key-2024'
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-# Klasörleri oluştur
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Database
 db = Database()
-
-# Optik Form Okuyucu
 form_okuyucu = OptikFormOkuyucu(debug_mode=True)
-
-# İzin verilen dosya uzantıları
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def generate_token(user_id):
-    """JWT token oluştur"""
     payload = {
         'user_id': user_id,
         'exp': datetime.utcnow() + timedelta(days=7)
     }
     return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+
+def verify_token(token):
+    try:
+        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        return payload['user_id']
+    except:
+        return None
+
+def get_current_user():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return None
+    try:
+        token = auth_header.split(' ')[1]
+        return verify_token(token)
+    except:
+        return None
 
 def verify_token(token):
     """JWT token doğrula"""
@@ -62,11 +71,10 @@ def get_current_user():
     except:
         return None
 
-# ============== AUTH ENDPOINTS ==============
+
 
 @app.route('/register', methods=['POST'])
 def register():
-    """Kullanıcı kayıt"""
     try:
         data = request.get_json()
         
@@ -93,7 +101,6 @@ def register():
 
 @app.route('/login', methods=['POST'])
 def login():
-    """Kullanıcı girişi"""
     try:
         data = request.get_json()
         
@@ -118,11 +125,8 @@ def login():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ============== ANSWER KEY ENDPOINTS ==============
-
 @app.route('/answer-keys', methods=['POST'])
 def create_answer_key():
-    """Cevap anahtarı oluştur veya güncelle (form adına göre)"""
     user_id = get_current_user()
     if not user_id:
         return jsonify({'error': 'Yetkisiz erişim'}), 401
@@ -179,7 +183,6 @@ def create_answer_key():
 
 @app.route('/form-templates', methods=['GET'])
 def get_form_templates():
-    """Mevcut form şablonlarını listele"""
     try:
         templates = list_templates()
         return jsonify({'success': True, 'templates': templates})
@@ -188,7 +191,6 @@ def get_form_templates():
 
 @app.route('/answer-keys', methods=['GET'])
 def get_answer_keys():
-    """Kullanıcının cevap anahtarlarını listele"""
     user_id = get_current_user()
     if not user_id:
         return jsonify({'error': 'Yetkisiz erişim'}), 401
@@ -201,7 +203,6 @@ def get_answer_keys():
 
 @app.route('/answer-keys/<int:answer_key_id>', methods=['GET'])
 def get_answer_key_detail(answer_key_id):
-    """Cevap anahtarı detayları"""
     user_id = get_current_user()
     if not user_id:
         return jsonify({'error': 'Yetkisiz erişim'}), 401
@@ -214,7 +215,6 @@ def get_answer_key_detail(answer_key_id):
 
 @app.route('/answer-keys/by-name/<exam_name>', methods=['GET'])
 def get_answer_key_by_name(exam_name):
-    """Form adına göre cevap anahtarı bul"""
     user_id = get_current_user()
     if not user_id:
         return jsonify({'error': 'Yetkisiz erişim'}), 401
@@ -230,13 +230,8 @@ def get_answer_key_by_name(exam_name):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ============== FORM READING ENDPOINT ==============
-
 @app.route('/read-optic-form', methods=['POST'])
 def read_optic_form():
-    """
-    Optik formu oku, analiz et ve sonuçları kaydet
-    """
     print("\n📥 Form okuma isteği alındı...")
     
     user_id = get_current_user()
@@ -280,8 +275,8 @@ def read_optic_form():
         
         print(f"📋 Cevap anahtarı: {answer_key.get('exam_name')}")
         
-        # 🔬 GÖRÜNTÜ İŞLEME - Optik formu oku
-        print("\n🔬 Görüntü işleme başlıyor...")
+        #  GÖRÜNTÜ İŞLEME - Optik formu oku
+        print("\n Görüntü işleme başlıyor...")
         okuma_sonucu = form_okuyucu.form_oku(filepath)
         
         if not okuma_sonucu['success']:
@@ -293,19 +288,19 @@ def read_optic_form():
         student_info = okuma_sonucu['student_info']
         student_answers = okuma_sonucu['answers']
         
-        print(f"👤 Öğrenci: {student_info.get('name', '')} {student_info.get('surname', '')}")
-        print(f"📝 Okunan cevap sayısı: {len(student_answers)}")
+        print(f" Öğrenci: {student_info.get('name', '')} {student_info.get('surname', '')}")
+        print(f" Okunan cevap sayısı: {len(student_answers)}")
         
-        # ⚖️ CEVAPLARI KARŞILAŞTIR
-        print("\n⚖️ Cevaplar karşılaştırılıyor...")
+        # CEVAPLARI KARŞILAŞTIR
+        print("\n Cevaplar karşılaştırılıyor...")
         karsilastirma = compare_answers(answer_key, student_answers)
         
-        print(f"✅ Doğru: {karsilastirma['correct_count']}")
-        print(f"❌ Yanlış: {karsilastirma['total_questions'] - karsilastirma['correct_count'] - sum(1 for a in student_answers.values() if a == 'BOŞ')}")
-        print(f"⬜ Boş: {sum(1 for a in student_answers.values() if a == 'BOŞ')}")
-        print(f"📊 Başarı: %{karsilastirma['success_rate']}")
+        print(f" Doğru: {karsilastirma['correct_count']}")
+        print(f" Yanlış: {karsilastirma['total_questions'] - karsilastirma['correct_count'] - sum(1 for a in student_answers.values() if a == 'BOŞ')}")
+        print(f" Boş: {sum(1 for a in student_answers.values() if a == 'BOŞ')}")
+        print(f" Başarı: %{karsilastirma['success_rate']}")
         
-        # 💾 SONUÇLARI KAYDET
+        # SONUÇLARI KAYDET
         student_name = student_info.get('name', '')
         student_surname = student_info.get('surname', '')
         full_name = f"{student_name} {student_surname}".strip() or 'Bilinmiyor'
@@ -317,14 +312,14 @@ def read_optic_form():
             'success_rate': karsilastirma['success_rate']
         }
         
-        print(f"💾 Sonuçlar veritabanına kaydediliyor...")
+        print(f" Sonuçlar veritabanına kaydediliyor...")
         result_id = db.save_student_result(
             int(answer_key_id),
             student_data,
             karsilastirma['detailed_answers'],
             filepath
         )
-        print(f"✅ Kaydedildi (ID: {result_id})")
+        print(f" Kaydedildi (ID: {result_id})")
         
         # Yanıt
         response = {
@@ -338,19 +333,16 @@ def read_optic_form():
             'details': f"{karsilastirma['correct_count']}/{karsilastirma['total_questions']} doğru"
         }
         
-        print(f"\n✅ İşlem tamamlandı!\n")
+        print(f"\n İşlem tamamlandı!\n")
         return jsonify(response)
         
     except Exception as e:
-        print(f"\n❌ HATA: {e}")
+        print(f"\n HATA: {e}")
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
 def compare_answers(answer_key, student_answers):
-    """
-    Öğrenci cevaplarını cevap anahtarı ile karşılaştır
-    """
     total_score = 0
     correct_count = 0
     total_questions = 0
@@ -409,11 +401,8 @@ def compare_answers(answer_key, student_answers):
         'detailed_answers': detailed_answers
     }
 
-# ============== RESULTS ENDPOINTS ==============
-
 @app.route('/results/<int:answer_key_id>', methods=['GET'])
 def get_results(answer_key_id):
-    """Belirli bir cevap anahtarına ait sonuçları listele"""
     user_id = get_current_user()
     if not user_id:
         return jsonify({'error': 'Yetkisiz erişim'}), 401
@@ -426,7 +415,6 @@ def get_results(answer_key_id):
 
 @app.route('/all-results', methods=['GET'])
 def get_all_results():
-    """Tüm sonuçları listele"""
     user_id = get_current_user()
     if not user_id:
         return jsonify({'error': 'Yetkisiz erişim'}), 401
@@ -439,73 +427,69 @@ def get_all_results():
 
 @app.route('/student-result/<int:result_id>', methods=['GET'])
 def get_student_result_detail(result_id):
-    """Öğrenci sonuç detayını getir - cevap karşılaştırması dahil + görsel base64"""
     import base64
     
     # Auth kontrol
     user_id = get_current_user()
     if not user_id:
-        print(f"⚠️ Auth başarısız, user_id: {user_id}")
-        # Test için auth'u geçici olarak devre dışı bırak
-        # return jsonify({'error': 'Yetkisiz erişim'}), 401
+        print(f" Auth başarısız, user_id: {user_id}")
+        
     
     try:
         result = db.get_student_result_detail(result_id)
         if result:
-            # Görseli base64 olarak ekle - Android emulator için optimize
+            
             image_path = result.get('image_path')
-            print(f"📝 Result ID: {result_id}, Image path: {image_path}")
+            print(f" Result ID: {result_id}, Image path: {image_path}")
             
             if image_path:
                 if not os.path.isabs(image_path):
                     image_path = os.path.join(os.path.dirname(__file__), image_path)
                 
-                print(f"✓ Checking image at: {image_path}")
-                print(f"✓ File exists: {os.path.exists(image_path)}")
+                print(f" Checking image at: {image_path}")
+                print(f" File exists: {os.path.exists(image_path)}")
                 
                 if os.path.exists(image_path):
                     try:
                         img = cv2.imread(image_path)
                         if img is not None:
-                            # Çok küçült (max 600px - Android emulator için)
                             max_size = 600
                             h, w = img.shape[:2]
-                            print(f"📸 Original size: {w}x{h}")
+                            print(f" Original size: {w}x{h}")
                             
                             if max(h, w) > max_size:
                                 scale = max_size / max(h, w)
                                 new_w = int(w * scale)
                                 new_h = int(h * scale)
                                 img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-                                print(f"📉 Resized to: {new_w}x{new_h}")
+                                print(f" Resized to: {new_w}x{new_h}")
                             
                             # JPEG olarak encode et - daha düşük kalite (50%)
                             _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 50])
                             img_base64 = base64.b64encode(buffer).decode('utf-8')
                             result['image_base64'] = img_base64
-                            print(f"✅ Görsel base64 oluşturuldu: {len(img_base64) / 1024:.1f} KB")
+                            print(f" Görsel base64 oluşturuldu: {len(img_base64) / 1024:.1f} KB")
                         else:
-                            print(f"❌ cv2.imread başarısız: {image_path}")
+                            print(f" cv2.imread başarısız: {image_path}")
                     except Exception as e:
-                        print(f"❌ Görsel base64 hatası: {e}")
+                        print(f" Görsel base64 hatası: {e}")
                         traceback.print_exc()
                 else:
-                    print(f"❌ Dosya bulunamadı: {image_path}")
+                    print(f" Dosya bulunamadı: {image_path}")
             else:
-                print(f"⚠️ Image path None")
+                print(f" Image path None")
             
             return jsonify({'success': True, 'result': result})
         else:
             return jsonify({'error': 'Sonuç bulunamadı'}), 404
     except Exception as e:
-        print(f"❌ API hatası: {e}")
+        print(f"API hatası: {e}")
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
-        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/student-image/<int:result_id>', methods=['GET'])
 def get_student_image(result_id):
-    """Öğrencinin optik form görselini getir - küçültülmüş"""
     from flask import send_file
     from io import BytesIO
     
@@ -549,17 +533,12 @@ def get_student_image(result_id):
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
-# ============== HEALTH CHECK ==============
-
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'OK', 'message': 'Optik Form API çalışıyor'})
 
-# ============== DATABASE VIEWER ==============
-
 @app.route('/db', methods=['GET'])
 def db_viewer_home():
-    """Veritabanı ana sayfa - tüm tabloları listele"""
     conn = db.get_connection()
     cursor = conn.cursor()
     
@@ -591,7 +570,7 @@ def db_viewer_home():
         </style>
     </head>
     <body>
-        <h1>📊 Optik Form Veritabanı</h1>
+        <h1> Optik Form Veritabanı</h1>
         <div class="table-list">
     """
     
@@ -613,7 +592,6 @@ def db_viewer_home():
 
 @app.route('/db/<table_name>', methods=['GET'])
 def db_viewer_table(table_name):
-    """Belirli bir tabloyu görüntüle"""
     conn = db.get_connection()
     cursor = conn.cursor()
     

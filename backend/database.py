@@ -17,7 +17,7 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Kullanıcılar tablosu
+        # kullanıcılar tablosu
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,7 +29,7 @@ class Database:
             )
         ''')
         
-        # Cevap anahtarları tablosu
+        # cevap anahtarları tablosu
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS answer_keys (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +43,7 @@ class Database:
             )
         ''')
         
-        # Ders bazında sorular ve cevaplar
+        # ders bazında sorular ve cevaplar
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS subjects (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,7 +55,7 @@ class Database:
             )
         ''')
         
-        # Her sorunun doğru cevabı
+        # her sorunun doğru cevabı
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS questions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,7 +67,7 @@ class Database:
             )
         ''')
         
-        # Öğrenci sonuçları
+        # öğrenci sonuçları
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS student_results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,7 +82,7 @@ class Database:
             )
         ''')
         
-        # Öğrenci cevapları
+        # öğrenci cevapları
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS student_answers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,7 +101,7 @@ class Database:
         conn.commit()
         conn.close()
     
-    # Kullanıcı işlemleri
+    # kullanıcı işlemleri
     def create_user(self, username, email, password, full_name):
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -139,16 +139,16 @@ class Database:
             return dict(user)
         return None
     
-    # Cevap anahtarı işlemleri
+    # cevap anahtarı işlemleri
     def create_answer_key(self, user_id, exam_name, school_type, subjects_data, form_template='simple'):
         conn = self.get_connection()
         cursor = conn.cursor()
         
         try:
-            # Toplam soru sayısını hesapla
+            # toplam soru sayısını hesapla
             total_questions = sum(s['question_count'] for s in subjects_data)
             
-            # Cevap anahtarını oluştur
+            # cevap anahtarını oluştur
             cursor.execute('''
                 INSERT INTO answer_keys (user_id, exam_name, school_type, form_template, total_questions)
                 VALUES (?, ?, ?, ?, ?)
@@ -156,7 +156,7 @@ class Database:
             
             answer_key_id = cursor.lastrowid
             
-            # Her ders için bilgileri kaydet
+            # her ders için bilgileri kaydet
             for subject in subjects_data:
                 cursor.execute('''
                     INSERT INTO subjects (answer_key_id, subject_name, question_count, points_per_question)
@@ -165,7 +165,7 @@ class Database:
                 
                 subject_id = cursor.lastrowid
                 
-                # Her sorunun cevabını kaydet
+                # her sorunun cevabını kaydet
                 for i, answer in enumerate(subject['answers'], 1):
                     cursor.execute('''
                         INSERT INTO questions (subject_id, question_number, correct_answer, points)
@@ -206,7 +206,6 @@ class Database:
         return keys
     
     def get_answer_key_by_name(self, user_id, exam_name):
-        """Form adına göre cevap anahtarı bul"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -223,22 +222,21 @@ class Database:
         return dict(key) if key else None
     
     def update_answer_key(self, answer_key_id, user_id, school_type, subjects_data, form_template):
-        """Mevcut cevap anahtarını güncelle"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
         try:
-            # Toplam soru sayısını hesapla
+            # toplam soru sayısını hesapla
             total_questions = sum(s['question_count'] for s in subjects_data)
             
-            # Cevap anahtarını güncelle
+            # cevap anahtarını güncelle
             cursor.execute('''
                 UPDATE answer_keys
                 SET school_type = ?, form_template = ?, total_questions = ?
                 WHERE id = ? AND user_id = ?
             ''', (school_type, form_template, total_questions, answer_key_id, user_id))
             
-            # Eski dersleri ve soruları sil
+            # eski dersleri ve soruları sil
             cursor.execute('''
                 DELETE FROM questions
                 WHERE subject_id IN (SELECT id FROM subjects WHERE answer_key_id = ?)
@@ -248,7 +246,7 @@ class Database:
                 DELETE FROM subjects WHERE answer_key_id = ?
             ''', (answer_key_id,))
             
-            # Yeni dersleri ekle
+            # yeni dersleri ekle
             for subject in subjects_data:
                 cursor.execute('''
                     INSERT INTO subjects (answer_key_id, subject_name, question_count, points_per_question)
@@ -257,7 +255,7 @@ class Database:
                 
                 subject_id = cursor.lastrowid
                 
-                # Her sorunun cevabını kaydet
+                # her sorunun cevabını kaydet
                 for i, answer in enumerate(subject['answers'], 1):
                     cursor.execute('''
                         INSERT INTO questions (subject_id, question_number, correct_answer, points)
@@ -277,11 +275,11 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Cevap anahtarı bilgilerini al
+        # cevap anahtarı bilgilerini al
         cursor.execute('SELECT * FROM answer_keys WHERE id = ?', (answer_key_id,))
         answer_key = dict(cursor.fetchone())
         
-        # Dersleri al
+        # dersleri al
         cursor.execute('''
             SELECT id, subject_name, question_count, points_per_question
             FROM subjects
@@ -294,7 +292,7 @@ class Database:
             subject = dict(subject_row)
             subject_id = subject['id']
             
-            # Bu dersin sorularını sıra numarasına göre al
+            # bu dersin sorularını sıra numarasına göre al
             cursor.execute('''
                 SELECT question_number, correct_answer, points
                 FROM questions
@@ -312,13 +310,13 @@ class Database:
         
         return answer_key
     
-    # Öğrenci sonuçları
+    # öğrenci sonuçları
     def save_student_result(self, answer_key_id, student_data, answers_data, image_path=None):
         conn = self.get_connection()
         cursor = conn.cursor()
         
         try:
-            # Öğrenci sonucunu kaydet
+            # öğrenci sonucunu kaydet
             cursor.execute('''
                 INSERT INTO student_results 
                 (answer_key_id, student_name, student_number, total_score, success_rate, image_path)
@@ -328,7 +326,7 @@ class Database:
             
             result_id = cursor.lastrowid
             
-            # Her cevabı kaydet
+            # her cevabı kaydet
             for answer in answers_data:
                 cursor.execute('''
                     INSERT INTO student_answers 
@@ -378,11 +376,10 @@ class Database:
         return results
 
     def get_student_result_detail(self, result_id):
-        """Öğrenci sonuç detaylarını getir - cevap karşılaştırması dahil"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # Öğrenci sonuç bilgilerini al
+        # öğrenci sonuç bilgilerini al
         cursor.execute('''
             SELECT sr.*, ak.exam_name, ak.form_template
             FROM student_results sr
@@ -398,7 +395,7 @@ class Database:
         result = dict(result_row)
         answer_key_id = result['answer_key_id']
         
-        # Ders bazlı istatistikler - sadece student_answers ve subjects tablosunu kullan
+        # ders bazlı istatistikler - sadece student_answers ve subjects tablosunu kullan
         cursor.execute('''
             SELECT 
                 s.subject_name,
@@ -424,7 +421,7 @@ class Database:
         
         result['subjects_stats'] = subjects_stats
         
-        # Tüm cevapları al (soru bazlı karşılaştırma için) - basitleştirilmiş sorgu
+        # tüm cevapları al (soru bazlı karşılaştırma için) - basitleştirilmiş sorgu
         cursor.execute('''
             SELECT 
                 sa.question_number,
