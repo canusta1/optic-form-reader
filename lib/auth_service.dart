@@ -11,7 +11,6 @@ class AuthService {
   static Map<String, dynamic>? get currentUser => _currentUser;
   static bool get isLoggedIn => _token != null;
 
-  // Login işlemi
   static Future<Map<String, dynamic>> login(
       String username, String password) async {
     try {
@@ -41,7 +40,6 @@ class AuthService {
     }
   }
 
-  // Kayıt işlemi
   static Future<Map<String, dynamic>> register(
     String username,
     String email,
@@ -74,13 +72,11 @@ class AuthService {
     }
   }
 
-  // Çıkış işlemi
   static void logout() {
     _token = null;
     _currentUser = null;
   }
 
-  // Auth header'ı için
   static Map<String, String> getAuthHeaders() {
     return {
       'Content-Type': 'application/json',

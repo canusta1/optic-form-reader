@@ -8,10 +8,7 @@ import 'auth_service.dart';
 import 'api_config.dart';
 
 void main() async {
-  // Flutter binding'leri başlat (async main için gerekli)
   WidgetsFlutterBinding.ensureInitialized();
-
-  // API bağlantı ayarlarını başlat (kaydedilmiş IP varsa yükler)
   await ApiConfig.initializeBaseUrl();
   ApiConfig.printConfig();
   runApp(const OpticFormApp());
@@ -89,7 +86,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true, // BottomNavBar arkasına içerik taşsın
+      extendBody: true,
       appBar: AppBar(
         title: const Text('Optik Form Okuyucu'),
         flexibleSpace: Container(

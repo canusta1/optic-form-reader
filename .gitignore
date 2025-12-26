@@ -2,6 +2,7 @@
 *.class
 *.log
 *.pyc
+*.pyo
 *.swp
 .DS_Store
 .atom/
@@ -11,6 +12,20 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+
+# Python/Backend
+__pycache__/
+*.py[cod]
+*$py.class
+backend/venv/
+backend/uploads/
+backend/debug_images/
+backend/processed/
+backend/*.db
+*.db
+uploads/
+debug_images/
+processed/
 
 # IntelliJ related
 *.iml

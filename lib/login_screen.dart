@@ -198,7 +198,6 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo ve Başlık
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -255,8 +254,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 48),
-
-                  // Login Form Container
                   Container(
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
@@ -284,8 +281,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 32),
-
-                          // Kullanıcı Adı
                           TextFormField(
                             controller: _usernameController,
                             decoration: InputDecoration(
@@ -308,8 +303,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                           const SizedBox(height: 20),
-
-                          // Şifre
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,

@@ -1251,7 +1251,7 @@ class OptikFormOkuyucu:
         satir_yuksekligi = h / soru_sayisi
         beklenen_yaricap = int(satir_yuksekligi / 2.5)
         
-        # HoughCircles parametreleri - biraz daha katı
+        # HoughCircles parametreleri
         min_r = max(8, int(beklenen_yaricap * 0.7))
         max_r = int(beklenen_yaricap * 1.3)
         
@@ -1261,7 +1261,7 @@ class OptikFormOkuyucu:
             dp=1,
             minDist=int(beklenen_yaricap * 0.8),
             param1=50,
-            param2=22,  # Biraz daha katı (20 -> 22)
+            param2=22,
             minRadius=min_r,
             maxRadius=max_r
         )
@@ -1335,10 +1335,10 @@ class OptikFormOkuyucu:
         if len(tum_avg_degerleri) > 5:
             global_ortalama = float(np.mean(tum_avg_degerleri))
             global_std = float(np.std(tum_avg_degerleri))
-            # İşaretli kabul edilecek maksimum parlaklık (daha katı)
+            # İşaretli kabul edilecek maksimum parlaklık
             dinamik_esik = min(140, global_ortalama - global_std * 0.5)
         else:
-            dinamik_esik = 130  # Varsayılan daha katı
+            dinamik_esik = 130
             global_ortalama = 180
         
         if self.debug_mode:
@@ -1372,6 +1372,8 @@ class OptikFormOkuyucu:
                 cevaplar[satir_no] = 'BOŞ'
                 continue
             
+            #Eşik değerler(doluluk oranı kontrolleri)
+            
             # En koyu olanı bul
             en_koyu = min(secenekler, key=lambda d: d['avg'])
             en_koyu_idx = secenekler.index(en_koyu)
@@ -1379,14 +1381,13 @@ class OptikFormOkuyucu:
             diger_avg = [d['avg'] for d in secenekler if d != en_koyu]
             diger_ortalama = sum(diger_avg) / len(diger_avg) if diger_avg else 255
             
-            # ===== DAHA KATI KRİTERLER =====
             
             # Kriter 1: Mutlak karanlık eşiği (dinamik veya sabit)
             mutlak_esik = min(dinamik_esik, 135)
             kriter1_gecti = en_koyu['avg'] < mutlak_esik
             
             # Kriter 2: Diğerlerinden yeterince koyu olmalı (fark kontrolü)
-            min_fark = 25  # 20 -> 25 daha katı
+            min_fark = 25
             kriter2_gecti = (diger_ortalama - en_koyu['avg']) > min_fark
             
             # Kriter 3: Oran kontrolü - en koyu, diğerlerinin ortalamasının %85'inden az olmalı
@@ -1397,7 +1398,6 @@ class OptikFormOkuyucu:
                 kriter3_gecti = False
             
             # Kriter 4: Standart sapma kontrolü - işaretli dairelerin içi homojen olmalı
-            # (çok yüksek std değeri gölge veya kirlilik olabilir)
             kriter4_gecti = en_koyu['std'] < 50  # İç homojenlik
             
             # Kriter 5: Minimum piksel değeri - en az birkaç piksel çok koyu olmalı
@@ -1545,7 +1545,7 @@ class OptikFormOkuyucu:
             diger = [d['avg'] for d in daireler if d != en_koyu]
             diger_ortalama = sum(diger) / len(diger) if diger else 255
             
-            # Daha katı kriterler
+            # Doluluk kriterleri
             mutlak_esik = min(dinamik_esik, 130)
             min_fark = 25
             oran_esik = 0.85

@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiConfig {
-  // Değiştirebilecek değişkenler
+
   static String _baseUrl = 'http://localhost:5000'; // Varsayılan
   static const String _savedIpKey = 'saved_server_ip';
 
@@ -16,7 +16,7 @@ class ApiConfig {
       return;
     }
 
-    // Önce kaydedilmiş IP var mı kontrol et
+    // Kaydedilmiş IP var mı kontrol et
     final savedIp = await getSavedIp();
     if (savedIp != null && savedIp.isNotEmpty) {
       _baseUrl = 'http://$savedIp:5000';
@@ -32,38 +32,37 @@ class ApiConfig {
       _baseUrl = 'http://10.0.2.2:5000';
     } else if (Platform.isIOS) {
       // iOS cihaz - aşağıdaki IP adresleri manuel ayarlanmalı
-      _baseUrl =
-          'http://192.168.1.100:5000'; /
+      _baseUrl = 'http://192.168.1.100:5000'; // iOS cihaz için
     } else {
       _baseUrl = 'http://localhost:5000';
     }
   }
 
-  // iOS cihazlar için manuel IP ayarla
+
   static void setCustomUrl(String url) {
     _baseUrl = url;
   }
 
-  // IP adresini kaydet
+
   static Future<void> saveIp(String ip) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_savedIpKey, ip);
     _baseUrl = 'http://$ip:5000';
   }
 
-  // Kaydedilmiş IP adresini getir
+
   static Future<String?> getSavedIp() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_savedIpKey);
   }
 
-  // Kaydedilmiş IP'yi sil
+
   static Future<void> clearSavedIp() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_savedIpKey);
   }
 
-  // Geçerli IP'yi debug için yazdır
+
   static void printConfig() {
     print('🔌 API Base URL: $_baseUrl');
     print('🌐 Is Web: $kIsWeb');

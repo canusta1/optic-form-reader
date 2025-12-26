@@ -176,18 +176,13 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
       ),
     );
   }
-
-  // TAB 1: Optik Form Görseli
   Widget _buildFormImageTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Özet Kart
           _buildSummaryCard(),
           const SizedBox(height: 16),
-
-          // Form Görseli
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -324,8 +319,6 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
       ],
     );
   }
-
-  // TAB 2: İstatistikler
   Widget _buildStatisticsTab() {
     final subjectsStats =
         _resultData?['subjects_stats'] as List<dynamic>? ?? [];
@@ -336,8 +329,6 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
         children: [
           _buildSummaryCard(),
           const SizedBox(height: 20),
-
-          // Ders Bazlı İstatistikler
           ...subjectsStats.map((subject) => _buildSubjectStatCard(subject)),
         ],
       ),
@@ -372,7 +363,6 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Başlık
           Row(
             children: [
               Container(
@@ -429,8 +419,6 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
           ),
 
           const SizedBox(height: 16),
-
-          // Progress Bar
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
@@ -443,8 +431,6 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
           ),
 
           const SizedBox(height: 16),
-
-          // İstatistik Satırı
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -514,13 +500,10 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
     if (percent >= 40) return Colors.amber;
     return Colors.red;
   }
-
-  // TAB 3: Cevap Karşılaştırması
   Widget _buildAnswersTab() {
     final answers = _resultData?['answers'] as List<dynamic>? ?? [];
     final subjectsStats =
         _resultData?['subjects_stats'] as List<dynamic>? ?? [];
-
     // Cevapları derse göre grupla
     Map<String, List<Map<String, dynamic>>> groupedAnswers = {};
     for (var answer in answers) {
@@ -580,7 +563,6 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
         ),
         subtitle: Text('${answers.length} soru'),
         children: [
-          // Başlık Satırı
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: Colors.grey[100],
@@ -613,7 +595,6 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
             ),
           ),
 
-          // Cevap Satırları
           ...answers.map((answer) => _buildAnswerRow(answer)),
 
           const SizedBox(height: 8),
@@ -657,7 +638,6 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
       ),
       child: Row(
         children: [
-          // Soru No
           Expanded(
             flex: 1,
             child: Container(
@@ -676,8 +656,6 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
               ),
             ),
           ),
-
-          // Öğrenci Cevabı
           Expanded(
             flex: 2,
             child: Container(
@@ -700,8 +678,6 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
               ),
             ),
           ),
-
-          // Doğru Cevap
           Expanded(
             flex: 2,
             child: Container(
@@ -722,8 +698,6 @@ class _StudentResultDetailScreenState extends State<StudentResultDetailScreen>
               ),
             ),
           ),
-
-          // Sonuç İkonu
           Expanded(
             flex: 1,
             child: Icon(icon, color: textColor, size: 24),

@@ -6,7 +6,6 @@ import 'api_config.dart';
 class FormService {
   static String get baseUrl => ApiConfig.baseUrl;
 
-  // Form şablonlarını getir
   static Future<List<Map<String, dynamic>>> getFormTemplates() async {
     try {
       final response = await http.get(
@@ -24,7 +23,6 @@ class FormService {
     }
   }
 
-  // Cevap anahtarı oluştur
   static Future<Map<String, dynamic>> createAnswerKey(
     String examName,
     String schoolType,
@@ -54,7 +52,6 @@ class FormService {
     }
   }
 
-  // Cevap anahtarlarını listele
   static Future<List<dynamic>> getAnswerKeys() async {
     try {
       final response = await http.get(
@@ -73,7 +70,6 @@ class FormService {
     }
   }
 
-  // Cevap anahtarı detayı
   static Future<Map<String, dynamic>?> getAnswerKeyDetail(
       int answerKeyId) async {
     try {
@@ -93,7 +89,6 @@ class FormService {
     }
   }
 
-  // Sonuçları getir
   static Future<List<dynamic>> getResults(int answerKeyId) async {
     try {
       final response = await http.get(
@@ -112,7 +107,6 @@ class FormService {
     }
   }
 
-  // Tüm sonuçları getir
   static Future<List<dynamic>> getAllResults() async {
     try {
       final response = await http.get(

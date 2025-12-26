@@ -40,7 +40,6 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
 
   void _initializeSubjects() {
     _subjects.clear();
-    // Sabit 4 ders, her biri 40 soru
     for (int i = 0; i < 4; i++) {
       _subjects.add(SubjectModel(
         name: 'Ders ${i + 1}',
@@ -57,7 +56,6 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // Backend için veri hazırla
       final subjectsData = _subjects
           .map((subject) => {
                 'name': subject.name,
@@ -69,7 +67,7 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
               })
           .toList();
 
-      // Backend'e gönder
+
       final result = await FormService.createAnswerKey(
         _formNameController.text,
         'Genel', // Okul tipi artık sabit veya önemsiz
@@ -111,7 +109,7 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
     }
   }
 
-  // YENİ: Kompakt Cevap Grid'i
+
   Widget _buildCompactAnswerGrid(SubjectModel subject, int subjectIndex) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -131,7 +129,6 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Başlık
             Row(
               children: [
                 Container(
@@ -184,8 +181,6 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
               ],
             ),
             const SizedBox(height: 12),
-
-            // Kompakt Soru Listesi
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -194,7 +189,6 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
               ),
               child: Column(
                 children: [
-                  // Başlık Satırı
                   const Row(
                     children: [
                       Expanded(
@@ -233,8 +227,6 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-
-                  // Soru Listesi
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -257,8 +249,6 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
       ),
     );
   }
-
-  // YENİ: Tekil Soru Satırı
   Widget _buildQuestionRow(
       int questionIndex, SubjectModel subject, int subjectIndex) {
     return Container(
@@ -269,7 +259,6 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
       ),
       child: Row(
         children: [
-          // Soru Numarası
           Expanded(
             flex: 2,
             child: Container(
@@ -290,8 +279,6 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
             ),
           ),
           const SizedBox(width: 8),
-
-          // Cevap Seçimi
           Expanded(
             child: Container(
               height: 32,
@@ -345,8 +332,6 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
             ),
           ),
           const SizedBox(width: 8),
-
-          // Puan Girişi
           Expanded(
             child: Container(
               height: 32,
@@ -429,7 +414,7 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
       ),
       body: Column(
         children: [
-          // Progress Indicator
+
           LinearProgressIndicator(
             value: (_currentStep + 1) / (_subjects.length + 1),
             backgroundColor: Colors.grey[200],
@@ -457,7 +442,6 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sınav Adı
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -532,8 +516,6 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
           ),
 
           const SizedBox(height: 24),
-
-          // Form Şablonu Seçimi
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -625,7 +607,7 @@ class _CreateFormScreenState extends State<CreateFormScreen> {
         ],
       );
     } else {
-      // Subject Steps (1-based index for user, 0-based for list)
+
       final subjectIndex = _currentStep - 1;
       if (subjectIndex < _subjects.length) {
         return _buildCompactAnswerGrid(_subjects[subjectIndex], subjectIndex);

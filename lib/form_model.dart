@@ -2,13 +2,13 @@ class FormModel {
   final String name;
   final List<SubjectModel> subjects;
   final DateTime createdAt;
-  final String schoolType; // YENİ EKLENDİ
+  final String schoolType;
 
   FormModel({
     required this.name,
     required this.subjects,
     required this.createdAt,
-    required this.schoolType, // YENİ EKLENDİ
+    required this.schoolType,
   });
 
   int get totalQuestions {

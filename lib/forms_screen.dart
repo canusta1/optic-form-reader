@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:optic_form_reader/create_form_screen.dart';
 import 'form_service.dart';
 
-// FormModel ve SubjectModel'i bu dosyada tanımla
+
 class FormModel {
   final int? id;
   final String name;
@@ -66,7 +66,7 @@ class SubjectModel {
   }
 }
 
-// FormCard'ı bu dosyada tanımla
+
 class FormCard extends StatelessWidget {
   final FormModel form;
   final VoidCallback onDelete;
@@ -295,7 +295,6 @@ class _FormsScreenState extends State<FormsScreen> {
     );
 
     if (result == true) {
-      // Yeniden yükle
       _loadForms();
     }
   }
@@ -365,7 +364,6 @@ class _FormsScreenState extends State<FormsScreen> {
                     return FormCard(
                       form: _forms[index],
                       onDelete: () {
-                        // Silme işlemi - şimdilik sadece refresh
                         _loadForms();
                       },
                     );

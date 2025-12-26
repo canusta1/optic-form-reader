@@ -48,11 +48,10 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    // Kalite kaybını önlemek için imageQuality: 100 (sıkıştırma yok)
-    // maxWidth/maxHeight belirtilmezse orijinal boyut korunur
+    // Sıkıştırma olmadan yüksek kalite görsel al
     final picked = await _picker.pickImage(
       source: source,
-      imageQuality: 100, // Sıkıştırma yok
+      imageQuality: 100,
       // maxWidth: null,  // Orijinal boyut
       // maxHeight: null, // Orijinal boyut
     );
@@ -89,13 +88,12 @@ class _UploadScreenState extends State<UploadScreen> {
         Uri.parse('${ApiConfig.baseUrl}/read-optic-form'),
       );
 
-      // Token ve dosya ekle
+      // Auth header ve dosya ekle
       request.headers.addAll(AuthService.getAuthHeaders());
       request.fields['answer_key_id'] = _selectedAnswerKeyId.toString();
 
-      // Web için bytes, mobil için path kullan
+      // Web için bytes, native için path kullan
       if (_imageBytes != null) {
-        // Dosya uzantısına göre content type belirle
         String contentType = 'image/jpeg';
         String filename = _image!.name.toLowerCase();
         if (filename.endsWith('.png')) {
@@ -209,7 +207,6 @@ class _UploadScreenState extends State<UploadScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Başlık Kartı
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -250,8 +247,6 @@ class _UploadScreenState extends State<UploadScreen> {
             ),
 
             const SizedBox(height: 24),
-
-            // Cevap Anahtarı Seçimi
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -357,8 +352,6 @@ class _UploadScreenState extends State<UploadScreen> {
             ),
 
             const SizedBox(height: 24),
-
-            // Fotoğraf Seçimi
             GestureDetector(
               onTap: () => _showImageSourceDialog(),
               child: Container(
@@ -451,8 +444,6 @@ class _UploadScreenState extends State<UploadScreen> {
             ),
 
             const SizedBox(height: 32),
-
-            // Analiz Butonu
             SizedBox(
               height: 56,
               child: ElevatedButton(
@@ -572,8 +563,6 @@ class _UploadScreenState extends State<UploadScreen> {
             ],
           ),
           const SizedBox(height: 24),
-
-          // Öğrenci Bilgileri
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -621,8 +610,6 @@ class _UploadScreenState extends State<UploadScreen> {
           ),
 
           const SizedBox(height: 24),
-
-          // Skor Kartları
           Row(
             children: [
               Expanded(
@@ -656,7 +643,6 @@ class _UploadScreenState extends State<UploadScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Ders Listesi
           ...subjectScores.entries.map((entry) {
             final scoreData = entry.value as Map<String, dynamic>;
             return Padding(
